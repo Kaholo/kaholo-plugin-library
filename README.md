@@ -184,7 +184,7 @@ Object parsed from JSON string
 function array(value) 
 ```
 
-Parses array from new line separated sring
+Parses array from new line separated string
 
 ### Parameter
 `value` (_string_) – value to parse
