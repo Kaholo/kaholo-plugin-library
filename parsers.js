@@ -19,6 +19,8 @@ function resolveParser(type) {
       return autocomplete;
     case "array":
       return array;
+    case "sshKey":
+      return sshKey;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
@@ -82,6 +84,10 @@ function array(value) {
     );
   }
   throw new Error("Unsupported array format");
+}
+
+function sshKey(value) {
+  const parsedValue = string(value);
 }
 
 module.exports = {

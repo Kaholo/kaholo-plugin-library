@@ -1,5 +1,12 @@
 const _ = require("lodash");
+const { open, writeFile, unlink } = require("fs/promises");
+const util = require("util");
+const exec = util.promisify(require("child_process").exec);
+
 const parsers = require("./parsers");
+const validators = require("./validators");
+
+const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp --tmpdir kaholo_plugin_library.XXX";
 
 function readActionArguments(action, settings) {
   const method = loadMethodFromConfiguration(action.method.name);
@@ -16,9 +23,35 @@ function readActionArguments(action, settings) {
       paramValues[paramDefinition.name],
       settingsValues[paramDefinition.name],
     );
+
+    validateParamValue(
+      paramValues[paramDefinition.name],
+      paramDefinition.validationType,
+    );
   });
 
   return removeUndefinedAndEmpty(paramValues);
+}
+
+async function temporaryFileSentinel(fileDataArray, functionToWatch) {
+  const {
+    stderr,
+    stdout,
+  } = await exec(CREATE_TEMPORARY_FILE_LINUX_COMMAND);
+  if (stderr) {
+    throw new Error(`Failed to create temporary file: ${stderr}`);
+  }
+
+  const temporaryFilePath = stdout.trim();
+
+  const fileHandle = await open(temporaryFilePath, "a");
+  const fileData = fileDataArray.join("\n");
+  await writeFile(fileHandle, fileData);
+
+  await functionToWatch(temporaryFilePath);
+
+  await fileHandle.close();
+  await unlink(temporaryFilePath);
 }
 
 function removeUndefinedAndEmpty(object) {
@@ -39,6 +72,14 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
   return parsers.resolveParser(parserToUse)(valueToParse);
 }
 
+function validateParamValue(
+  parameterValue,
+  validationType,
+) {
+  const validate = validators.resolveValidationFunction(validationType);
+  return validate(parameterValue);
+}
+
 function loadMethodFromConfiguration(methodName) {
   const config = loadConfiguration();
   return config.methods.find((m) => m.name === methodName);
@@ -56,4 +97,5 @@ function loadConfiguration() {
 
 module.exports = {
   readActionArguments,
+  temporaryFileSentinel,
 };
