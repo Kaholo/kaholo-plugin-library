@@ -87,7 +87,7 @@ function array(value) {
 }
 
 function sshKey(value) {
-  const parsedValue = string(value);
+  return string(value);
 }
 
 module.exports = {
