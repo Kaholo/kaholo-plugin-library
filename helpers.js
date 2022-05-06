@@ -27,7 +27,7 @@ function removeUndefinedAndEmpty(object) {
 }
 
 function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
-  const valueToParse = paramValue || settingsValue || paramDefinition.default;
+  const valueToParse = paramValue ?? settingsValue ?? paramDefinition.default;
   if (_.isNil(valueToParse)) {
     if (paramDefinition.required) {
       throw Error(`Missing required "${paramDefinition.name}" value`);
