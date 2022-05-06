@@ -20,7 +20,7 @@ function resolveParser(type) {
     case "array":
       return array;
     case "sshKey":
-      return sshKey;
+      return string;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
@@ -84,10 +84,6 @@ function array(value) {
     );
   }
   throw new Error("Unsupported array format");
-}
-
-function sshKey(value) {
-  return string(value);
 }
 
 module.exports = {

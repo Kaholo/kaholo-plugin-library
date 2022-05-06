@@ -24,10 +24,13 @@ function readActionArguments(action, settings) {
       settingsValues[paramDefinition.name],
     );
 
-    validateParamValue(
-      paramValues[paramDefinition.name],
-      paramDefinition.validationType,
-    );
+    const validationType = { paramDefinition };
+    if (validationType) {
+      validateParamValue(
+        paramValues[paramDefinition.name],
+        validationType,
+      );
+    }
   });
 
   return removeUndefinedAndEmpty(paramValues);
