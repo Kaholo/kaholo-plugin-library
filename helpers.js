@@ -7,6 +7,7 @@ const parsers = require("./parsers");
 const validators = require("./validators");
 
 const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp --tmpdir kaholo_plugin_library.XXX";
+const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
 
 function readActionArguments(action, settings) {
   const method = loadMethodFromConfiguration(action.method.name);
@@ -57,6 +58,27 @@ async function temporaryFileSentinel(fileDataArray, functionToWatch) {
   await unlink(temporaryFilePath);
 }
 
+function extractPathsFromCommand(commandString, {
+  regex = DEFAULT_PATH_ARGUMENT_REGEX,
+} = {}) {
+  const matches = [...commandString.toString().matchAll(regex)];
+  const mappedMatches = matches.map((match) => ({
+    path: stripPathArgument(match[0]),
+    argument: match[0],
+    startIndex: match.index,
+    endIndex: match.index + match[0].length,
+    input: match.input,
+  }));
+
+  return mappedMatches;
+}
+
+function stripPathArgument(fileArgument) {
+  return fileArgument
+    .replace(/((?<!\\)["']$|^(?<!\\)["'])/g, "") // Strip from any quotes
+    .replace(/^(?:fileb?:\/\/)?/, ""); // Strip from file:// and fileb://
+}
+
 function removeUndefinedAndEmpty(object) {
   if (!_.isPlainObject(object)) { return _.clone(object); }
   return _.omitBy(object, (value) => value === "" || _.isNil(value) || (_.isObjectLike(value) && _.isEmpty(value)));
@@ -101,4 +123,5 @@ function loadConfiguration() {
 module.exports = {
   readActionArguments,
   temporaryFileSentinel,
+  extractPathsFromCommand,
 };
