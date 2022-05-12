@@ -62,12 +62,12 @@ function extractPathsFromCommand(commandString, {
   regex = DEFAULT_PATH_ARGUMENT_REGEX,
 } = {}) {
   const matches = [...commandString.toString().matchAll(regex)];
+
   const mappedMatches = matches.map((match) => ({
     path: stripPathArgument(match[0]),
     argument: match[0],
     startIndex: match.index,
     endIndex: match.index + match[0].length,
-    input: match.input,
   }));
 
   return mappedMatches;
