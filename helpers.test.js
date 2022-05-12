@@ -42,6 +42,8 @@ describe("extractPathsFromCommand", () => {
     const extractedPaths = helpers.extractPathsFromCommand(commandString);
 
     expect(extractedPaths[0].path).toMatch("/tmp/dir");
+    expect(extractedPaths[0].startIndex).toEqual(6);
+    expect(extractedPaths[0].endIndex).toEqual(13);
     expect(extractedPaths[0].argument).toMatch("/tmp/dir");
 
     expect(extractedPaths[1].path).toMatch("/tmp/dir2/");
@@ -53,6 +55,8 @@ describe("extractPathsFromCommand", () => {
     const extractedPaths = helpers.extractPathsFromCommand(commandString);
 
     expect(extractedPaths[0].path).toMatch("/tmp/dir");
+    expect(extractedPaths[0].startIndex).toEqual(6);
+    expect(extractedPaths[0].endIndex).toEqual(15);
     expect(extractedPaths[0].argument).toMatch("\"/tmp/dir\"");
 
     expect(extractedPaths[1].path).toMatch("/tmp/dir2");
@@ -64,6 +68,8 @@ describe("extractPathsFromCommand", () => {
     const extractedPaths = helpers.extractPathsFromCommand(commandString);
 
     expect(extractedPaths[0].path).toMatch("/tmp/dir");
+    expect(extractedPaths[0].startIndex).toEqual(9);
+    expect(extractedPaths[0].endIndex).toEqual(18);
     expect(extractedPaths[0].argument).toMatch("'/tmp/dir'");
 
     expect(extractedPaths[1].path).toMatch("/tmp/dir2");
@@ -75,6 +81,8 @@ describe("extractPathsFromCommand", () => {
     const extractedPaths = helpers.extractPathsFromCommand(commandString);
 
     expect(extractedPaths[0].path).toMatch("/path/to/the/file");
+    expect(extractedPaths[0].startIndex).toEqual(11);
+    expect(extractedPaths[0].endIndex).toEqual(34);
     expect(extractedPaths[0].argument).toMatch("file:///path/to/the/file");
 
     expect(extractedPaths[1].path).toMatch("some-directory/file");
@@ -86,6 +94,8 @@ describe("extractPathsFromCommand", () => {
     const extractedPaths = helpers.extractPathsFromCommand(commandString);
 
     expect(extractedPaths[0].path).toMatch("/path/to the/file");
+    expect(extractedPaths[0].startIndex).toEqual(11);
+    expect(extractedPaths[0].endIndex).toEqual(37);
     expect(extractedPaths[0].argument).toMatch("\"fileb:///path/to the/file\"");
 
     expect(extractedPaths[1].path).toMatch("relative path/to the/file");
@@ -100,6 +110,8 @@ describe("extractPathsFromCommand", () => {
     expect(extractedPaths[0].argument).toMatch("'fileb:///path/to the/file'");
 
     expect(extractedPaths[1].path).toMatch("relative path/to the/file");
+    expect(extractedPaths[1].startIndex).toEqual(42);
+    expect(extractedPaths[1].endIndex).toEqual(75);
     expect(extractedPaths[1].argument).toMatch("'file://relative path/to the/file'");
   });
 });

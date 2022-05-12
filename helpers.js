@@ -67,7 +67,7 @@ function extractPathsFromCommand(commandString, {
     path: stripPathArgument(match[0]),
     argument: match[0],
     startIndex: match.index,
-    endIndex: match.index + match[0].length,
+    endIndex: match.index + match[0].length - 1,
   }));
 
   return mappedMatches;
