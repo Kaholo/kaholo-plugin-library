@@ -61,7 +61,7 @@ async function temporaryFileSentinel(fileDataArray, functionToWatch) {
 function extractPathsFromCommand(commandString, {
   regex = DEFAULT_PATH_ARGUMENT_REGEX,
 } = {}) {
-  const matches = [...commandString.toString().matchAll(regex)];
+  const matches = [...commandString.matchAll(regex)];
 
   const mappedMatches = matches.map((match) => ({
     path: stripPathArgument(match[0]),
