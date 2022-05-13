@@ -76,7 +76,7 @@ function extractPathsFromCommand(commandString, {
 function stripPathArgument(pathArgument) {
   return pathArgument
     .replace(/((?<!\\)["']$|^(?<!\\)["'])/g, "") // Strip from any quotes
-    .replace(/^(?:fileb?:\/\/)?/, ""); // Strip from file:// and fileb://
+    .replace(/^(?:fileb?:\/\/)/, ""); // Strip from file:// and fileb://
 }
 
 function removeUndefinedAndEmpty(object) {
