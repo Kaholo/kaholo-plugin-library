@@ -73,8 +73,8 @@ function extractPathsFromCommand(commandString, {
   return mappedMatches;
 }
 
-function stripPathArgument(fileArgument) {
-  return fileArgument
+function stripPathArgument(pathArgument) {
+  return pathArgument
     .replace(/((?<!\\)["']$|^(?<!\\)["'])/g, "") // Strip from any quotes
     .replace(/^(?:fileb?:\/\/)?/, ""); // Strip from file:// and fileb://
 }
