@@ -27,7 +27,7 @@ function readActionArguments(action, settings) {
       settingsValues[paramDefinition.name],
     );
 
-    const validationType = { paramDefinition };
+    const { validationType } = paramDefinition;
     if (validationType) {
       validateParamValue(
         paramValues[paramDefinition.name],
