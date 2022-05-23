@@ -64,7 +64,7 @@ function boolean(value) {
 
 function string(value) {
   if (_.isNil(value)) { return ""; }
-  if (_.isString(value)) { return value; }
+  if (_.isString(value)) { return value.trim(); }
   throw new Error(`Value ${value} is not a valid string`);
 }
 
