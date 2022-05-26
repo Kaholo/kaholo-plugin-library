@@ -54,10 +54,12 @@ async function temporaryFileSentinel(fileDataArray, functionToWatch) {
   const fileData = fileDataArray.join("\n");
   await writeFile(fileHandle, fileData);
 
-  await functionToWatch(temporaryFilePath);
-
-  await fileHandle.close();
-  await unlink(temporaryFilePath);
+  try {
+    await functionToWatch(temporaryFilePath);
+  } finally {
+    await fileHandle.close();
+    await unlink(temporaryFilePath);
+  }
 }
 
 function extractPathsFromCommand(commandString, regex = DEFAULT_PATH_ARGUMENT_REGEX) {
