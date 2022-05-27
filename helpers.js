@@ -28,6 +28,8 @@ function readActionArguments(action, settings) {
     );
 
     const { validationType } = paramDefinition;
+    console.log("PARAM DEFINITION", paramDefinition);
+    console.log("VALIDATION TYPE", validationType);
     if (validationType) {
       validateParamValue(
         paramValues[paramDefinition.name],
