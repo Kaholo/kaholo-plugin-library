@@ -34,6 +34,17 @@ describe("temporaryFileSentinel", () => {
       await open(pathToTempFile, "r");
     }).rejects.toThrow(`ENOENT: no such file or directory, open '${pathToTempFile}'`);
   });
+
+  it("should remove the file even if the function throws an error", async () => {
+    let tempFilePath;
+
+    await helpers.temporaryFileSentinel([], async (filePath) => {
+      tempFilePath = filePath;
+      throw new Error();
+    }).catch(() => {}); // Ignore error
+
+    expect(() => open(tempFilePath, "r")).rejects.toThrow(`ENOENT: no such file or directory, open '${tempFilePath}'`);
+  });
 });
 
 describe("extractPathsFromCommand", () => {
