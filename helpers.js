@@ -115,7 +115,7 @@ function loadMethodFromConfiguration(methodName) {
 function loadConfiguration() {
   try {
     // eslint-disable-next-line global-require, import/no-unresolved
-    return require("../../config.json");
+    return require("../../../config.json");
   } catch (exception) {
     console.error(exception);
     throw new Error("Could not retrieve the plugin configuration");
