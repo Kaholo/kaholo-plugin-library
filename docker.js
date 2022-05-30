@@ -1,6 +1,13 @@
 const _ = require("lodash");
 
 function createVolumeConfig(path) {
+  if (!path) {
+    throw new Error("Path is required to create Volume Config.");
+  }
+  if (!_.isString(path)) {
+    throw new Error("Path parameter must be a string.");
+  }
+
   const pathEnvironmentVariableName = generateRandomEnvironmentVariableName();
   const mountPointEnvironmentVariableName = generateRandomEnvironmentVariableName();
   const mountPoint = generateRandomTemporaryPath();
@@ -24,12 +31,16 @@ function createVolumeConfig(path) {
 }
 
 function sanitizeCommand(command) {
+  if (!command || !_.isString(command)) {
+    throw new Error("Command parameter must be a string.");
+  }
+
   return `sh -c ${JSON.stringify(command)}`;
 }
 
 function mergeVolumeConfigsEnvironmentVariables(volumeConfigs) {
   if (!volumeConfigs || !_.isArray(volumeConfigs)) {
-    throw new Error("Volume Configs param must be an array of objects.");
+    throw new Error("Volume Configs parameter must be an array of objects.");
   }
 
   const requiredByDocker = volumeConfigs.reduce((acc, curr) => {
@@ -56,7 +67,10 @@ function mergeVolumeConfigsEnvironmentVariables(volumeConfigs) {
     };
   }, requiredByDocker);
 
-  return { requiredByDocker, requiredByShell };
+  return {
+    namesRequiredByDocker: Object.keys(requiredByDocker),
+    requiredByShell,
+  };
 }
 
 function buildDockerCommand({
@@ -64,8 +78,8 @@ function buildDockerCommand({
   image,
   environmentVariables = [],
   volumeConfigs = [],
-  user,
-  cwd,
+  workingDirectory = "",
+  user = "",
 }) {
   if (!image) {
     throw new Error("No Docker image provided.");
@@ -77,7 +91,7 @@ function buildDockerCommand({
   const environmentVariableArguments = buildEnvironmentVariableArguments(environmentVariables);
   const volumeArguments = buildMountVolumeArguments(volumeConfigs);
   const userArguments = user && ["--user", user];
-  const cwdArguments = cwd && ["-w", cwd];
+  const workingDirectoryArguments = workingDirectory && ["-w", workingDirectory];
 
   const dockerArguments = ["docker", "run", "--rm"];
   if (environmentVariableArguments) {
@@ -89,8 +103,8 @@ function buildDockerCommand({
   if (userArguments) {
     dockerArguments.push(...userArguments);
   }
-  if (cwdArguments) {
-    dockerArguments.push(...cwdArguments);
+  if (workingDirectoryArguments) {
+    dockerArguments.push(...workingDirectoryArguments);
   }
   dockerArguments.push(image, command);
 
@@ -103,7 +117,7 @@ function buildEnvironmentVariableArguments(environmentVariableNames) {
     || !_.isArray(environmentVariableNames)
     || _.some(environmentVariableNames, (variableName) => !_.isString(variableName))
   ) {
-    throw new Error("Environment Variable Names param must be an array of strings.");
+    throw new Error("Environment Variable Names parameter must be an array of strings.");
   }
 
   return environmentVariableNames
@@ -113,7 +127,7 @@ function buildEnvironmentVariableArguments(environmentVariableNames) {
 
 function buildMountVolumeArguments(volumeConfigs) {
   if (!volumeConfigs || !_.isArray(volumeConfigs)) {
-    throw new Error("Volume Configs param must be an array of objects.");
+    throw new Error("Volume Configs parameter must be an array of objects.");
   }
 
   return volumeConfigs
@@ -129,7 +143,7 @@ function buildMountVolumeArguments(volumeConfigs) {
 }
 
 function generateRandomTemporaryPath() {
-  return `/tmp/kaholo_tmp_path_${generateRandomString}`;
+  return `/tmp/kaholo_tmp_path_${generateRandomString()}`;
 }
 
 function generateRandomEnvironmentVariableName() {
@@ -153,4 +167,8 @@ module.exports = {
   buildDockerCommand,
   createVolumeConfig,
   sanitizeCommand,
+  buildEnvironmentVariableArguments,
+  buildMountVolumeArguments,
+  generateRandomEnvironmentVariableName,
+  generateRandomTemporaryPath,
 };
