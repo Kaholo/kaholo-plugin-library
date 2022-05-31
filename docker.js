@@ -80,12 +80,22 @@ function buildDockerCommand({
   volumeConfigs = [],
   workingDirectory = "",
   user = "",
+  additionalArguments = [],
 }) {
   if (!image) {
     throw new Error("No Docker image provided.");
   }
   if (!command) {
     throw new Error("No command provided for Docker container.");
+  }
+
+  if (
+    additionalArguments && (
+      !_.isArray(additionalArguments)
+      || _.some(additionalArguments, (additionalArgument) => !_.isString(additionalArgument))
+    )
+  ) {
+    throw new Error("Additional Arguments must be an array of strings.");
   }
 
   const environmentVariableArguments = buildEnvironmentVariableArguments(environmentVariables);
@@ -105,6 +115,9 @@ function buildDockerCommand({
   }
   if (workingDirectoryArguments) {
     dockerArguments.push(...workingDirectoryArguments);
+  }
+  if (additionalArguments) {
+    dockerArguments.push(...additionalArguments);
   }
   dockerArguments.push(image, command);
 

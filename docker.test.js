@@ -144,6 +144,39 @@ describe("Docker helper functions", () => {
       expect(dockerCommand).toMatch(expectedDockerCommand);
     });
 
+    it("should build a valid docker command with additional arguments", () => {
+      const image = "test/image";
+      const command = "echo";
+      const additionalArguments = ["-w", "/test/dir"];
+
+      const dockerCommand = docker.buildDockerCommand({
+        image,
+        command,
+        additionalArguments,
+      });
+      const expectedDockerCommand = "docker run --rm -w /test/dir test/image echo";
+
+      expect(dockerCommand).toMatch(expectedDockerCommand);
+    });
+
+    it("should throw an error if additional arguments param is invalid", () => {
+      const image = "test/image";
+      const command = "echo";
+      const invalidParams = [4, {}, "invalid", true];
+
+      invalidParams.forEach((invalidParam) => {
+        const payload = {
+          image,
+          command,
+          additionalArguments: invalidParam,
+        };
+
+        expect(
+          docker.buildDockerCommand.bind(null, payload),
+        ).toThrowError("Additional Arguments must be an array of strings.");
+      });
+    });
+
     it("should throw an error if there is no image passed", () => {
       expect(
         docker.buildDockerCommand.bind(null, { command: "somecommand" }),
