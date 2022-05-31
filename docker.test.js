@@ -40,10 +40,31 @@ describe("Docker helper functions", () => {
   describe("sanitizeCommand", () => {
     it("should correctly sanitize a command", () => {
       const command = "echo $(id) --test \"quotes\"";
-      const sanitized = docker.sanitizeCommand(command);
-      const expected = "sh -c \"echo $(id) --test \\\"quotes\\\"\"";
 
-      expect(sanitized).toMatch(expected);
+      const sanitizedCommand = docker.sanitizeCommand(command);
+      const expectedCommand = "sh -c \"echo $(id) --test \\\"quotes\\\"\"";
+
+      expect(sanitizedCommand).toEqual(expectedCommand);
+    });
+
+    it("should prepend command prefix", () => {
+      const command = "echo";
+      const commandPrefix = "sh -c";
+
+      const sanitizedCommand = docker.sanitizeCommand(command, commandPrefix);
+      const expectedCommand = "sh -c \"sh -c echo\"";
+
+      expect(sanitizedCommand).toEqual(expectedCommand);
+    });
+
+    it("shouldn't prepend command prefix", () => {
+      const command = "sh -c \"echo hello world\"";
+      const commandPrefix = "sh -c";
+
+      const sanitizedCommand = docker.sanitizeCommand(command, commandPrefix);
+      const expectedCommand = "sh -c \"sh -c \\\"echo hello world\\\"\"";
+
+      expect(sanitizedCommand).toEqual(expectedCommand);
     });
 
     it("should throw an error if a command is not a string", () => {
@@ -55,20 +76,20 @@ describe("Docker helper functions", () => {
     });
   });
 
-  describe("mergeVolumeConfigsEnvironmentVariables", () => {
-    it("should correctly merge environment variables", () => {
+  describe("extractEnvironmentVariablesFromVolumeConfigs", () => {
+    it("should correctly extract environment variables", () => {
       const {
-        namesRequiredByDocker,
-        requiredByShell,
-      } = docker.mergeVolumeConfigsEnvironmentVariables([
+        environmentVariablesRequiredByDocker,
+        environmentVariablesRequiredByShell,
+      } = docker.extractEnvironmentVariablesFromVolumeConfigs([
         docker.createVolumeConfig("/path/to/file1"),
         docker.createVolumeConfig("/path/to/file2"),
       ]);
 
-      expect(Object.keys(requiredByShell).length).toEqual(4);
-      expect(namesRequiredByDocker.length).toEqual(2);
+      expect(Object.keys(environmentVariablesRequiredByShell).length).toEqual(4);
+      expect(Object.keys(environmentVariablesRequiredByDocker).length).toEqual(2);
 
-      Object.keys(requiredByShell).forEach((envName) => {
+      Object.keys(environmentVariablesRequiredByShell).forEach((envName) => {
         expect(envName).toMatch(ENVIRONMENT_VAR_NAME_REGEX);
       });
     });
@@ -81,19 +102,19 @@ describe("Docker helper functions", () => {
       };
 
       expect(
-        docker.mergeVolumeConfigsEnvironmentVariables.bind(null, [invalidVolumeConfig]),
+        docker.extractEnvironmentVariablesFromVolumeConfigs.bind(null, [invalidVolumeConfig]),
       ).toThrowError(`Volume Config property "mountPoint.environmentVariable.name" is missing on: ${JSON.stringify(invalidVolumeConfig)}`);
     });
 
     it("should throw an error if there are no passed Volume Configs", () => {
       expect(
-        docker.mergeVolumeConfigsEnvironmentVariables,
+        docker.extractEnvironmentVariablesFromVolumeConfigs,
       ).toThrowError("Volume Configs parameter must be an array of objects.");
 
       const invalidVolumeConfigsParams = [null, {}, undefined, 3, "invalid"];
       invalidVolumeConfigsParams.forEach((invalidParam) => {
         expect(
-          docker.mergeVolumeConfigsEnvironmentVariables.bind(null, invalidParam),
+          docker.extractEnvironmentVariablesFromVolumeConfigs.bind(null, invalidParam),
         ).toThrowError("Volume Configs parameter must be an array of objects.");
       });
     });
@@ -106,7 +127,7 @@ describe("Docker helper functions", () => {
 
       const dockerCommand = docker.buildDockerCommand({ command, image });
 
-      expect(dockerCommand).toMatch("docker run --rm test/image echo hello world");
+      expect(dockerCommand).toEqual("docker run --rm test/image echo hello world");
     });
 
     it("should build a valid docker command with user and working directory arguments", () => {
@@ -122,26 +143,32 @@ describe("Docker helper functions", () => {
         workingDirectory,
       });
 
-      expect(dockerCommand).toMatch("docker run --rm --user admin -w /path/to/cwd test/image-2 echo hello world");
+      expect(dockerCommand).toEqual("docker run --rm --user admin -w /path/to/cwd test/image-2 echo hello world");
     });
 
     it("should build a valid docker command with environment variables and volumes", () => {
       const command = "echo hello world!";
       const image = "test/image-3";
       const volumeConfigs = [docker.createVolumeConfig("/path/to/file")];
-      const environmentVariables = docker.mergeVolumeConfigsEnvironmentVariables(volumeConfigs);
+      const environmentVariables = (
+        docker.extractEnvironmentVariablesFromVolumeConfigs(volumeConfigs)
+      );
 
       const dockerCommand = docker.buildDockerCommand({
         command,
         image,
         volumeConfigs,
-        environmentVariables: environmentVariables.namesRequiredByDocker,
+        environmentVariables: (
+          Object.keys(environmentVariables.environmentVariablesRequiredByDocker)
+        ),
       });
 
-      const environmentVariableKeys = environmentVariables.namesRequiredByDocker;
+      const environmentVariableKeys = (
+        Object.keys(environmentVariables.environmentVariablesRequiredByDocker)
+      );
       const expectedDockerCommand = `docker run --rm -e ${environmentVariableKeys[0]} -v ${volumeConfigs[0].path.value}:${volumeConfigs[0].mountPoint.value} test/image-3 echo hello world!`;
 
-      expect(dockerCommand).toMatch(expectedDockerCommand);
+      expect(dockerCommand).toEqual(expectedDockerCommand);
     });
 
     it("should build a valid docker command with additional arguments", () => {
@@ -156,7 +183,7 @@ describe("Docker helper functions", () => {
       });
       const expectedDockerCommand = "docker run --rm -w /test/dir test/image echo";
 
-      expect(dockerCommand).toMatch(expectedDockerCommand);
+      expect(dockerCommand).toEqual(expectedDockerCommand);
     });
 
     it("should throw an error if additional arguments param is invalid", () => {
@@ -275,32 +302,6 @@ describe("Docker helper functions", () => {
       expect(
         docker.buildMountVolumeArguments.bind(null, invalidVolumeConfigs2),
       ).toThrowError(`Volume Config property "mountPoint.value" is missing on: ${JSON.stringify(invalidVolumeConfigs2[0])}`);
-    });
-  });
-
-  describe("Unique random functions", () => {
-    const testUniqueRandomFunction = (functionName, matchParam, sampleSize = 200) => {
-      const generatedValues = new Array(sampleSize).fill(0).map(docker[functionName]);
-      const scannedValues = new Set();
-
-      generatedValues.forEach((generatedPath) => {
-        expect(scannedValues.has(generatedPath)).toBeFalsy();
-        scannedValues.add(generatedPath);
-
-        expect(generatedPath).toMatch(matchParam);
-      });
-    };
-
-    describe("generateRandomTemporaryPath", () => {
-      it("should create unique paths in /tmp directory", () => {
-        testUniqueRandomFunction("generateRandomTemporaryPath", /^\/tmp\/kaholo_tmp_path_[a-z0-9]+$/);
-      });
-    });
-
-    describe("generateRandomEnvironmentVariableName", () => {
-      it("should create unique environment variable names", () => {
-        testUniqueRandomFunction("generateRandomEnvironmentVariableName", ENVIRONMENT_VAR_NAME_REGEX);
-      });
     });
   });
 });

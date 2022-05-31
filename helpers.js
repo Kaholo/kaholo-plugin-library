@@ -122,8 +122,22 @@ function loadConfiguration() {
   }
 }
 
+function generateRandomTemporaryPath() {
+  return `/tmp/kaholo_tmp_path_${generateRandomString()}`;
+}
+
+function generateRandomEnvironmentVariableName() {
+  return `KAHOLO_ENV_VAR_${generateRandomString().toUpperCase()}`;
+}
+
+function generateRandomString() {
+  return Math.random().toString(36).slice(2);
+}
+
 module.exports = {
   readActionArguments,
   temporaryFileSentinel,
   extractPathsFromCommand,
+  generateRandomTemporaryPath,
+  generateRandomEnvironmentVariableName,
 };

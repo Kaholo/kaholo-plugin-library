@@ -1,4 +1,8 @@
 const _ = require("lodash");
+const {
+  generateRandomEnvironmentVariableName,
+  generateRandomTemporaryPath,
+} = require("./helpers");
 
 function createVolumeConfig(path) {
   if (!path) {
@@ -30,20 +34,25 @@ function createVolumeConfig(path) {
   };
 }
 
-function sanitizeCommand(command) {
+function sanitizeCommand(command, commandPrefix) {
   if (!command || !_.isString(command)) {
     throw new Error("Command parameter must be a string.");
   }
 
-  return `sh -c ${JSON.stringify(command)}`;
+  let commandWithPrefix = command;
+  if (commandPrefix) {
+    commandWithPrefix = command.startsWith(`${commandPrefix} `) ? command : `${commandPrefix} ${command}`;
+  }
+
+  return `sh -c ${JSON.stringify(commandWithPrefix)}`;
 }
 
-function mergeVolumeConfigsEnvironmentVariables(volumeConfigs) {
+function extractEnvironmentVariablesFromVolumeConfigs(volumeConfigs) {
   if (!volumeConfigs || !_.isArray(volumeConfigs)) {
     throw new Error("Volume Configs parameter must be an array of objects.");
   }
 
-  const requiredByDocker = volumeConfigs.reduce((acc, curr) => {
+  const environmentVariablesRequiredByDocker = volumeConfigs.reduce((acc, curr) => {
     assertVolumeConfigPropertiesExistence(curr, [
       "mountPoint.environmentVariable.name",
       "mountPoint.environmentVariable.value",
@@ -55,7 +64,7 @@ function mergeVolumeConfigsEnvironmentVariables(volumeConfigs) {
     };
   }, {});
 
-  const requiredByShell = volumeConfigs.reduce((acc, curr) => {
+  const environmentVariablesRequiredByShell = volumeConfigs.reduce((acc, curr) => {
     assertVolumeConfigPropertiesExistence(curr, [
       "path.environmentVariable.name",
       "path.environmentVariable.value",
@@ -65,11 +74,11 @@ function mergeVolumeConfigsEnvironmentVariables(volumeConfigs) {
       ...acc,
       [curr.path.environmentVariable.name]: curr.path.environmentVariable.value,
     };
-  }, requiredByDocker);
+  }, environmentVariablesRequiredByDocker);
 
   return {
-    namesRequiredByDocker: Object.keys(requiredByDocker),
-    requiredByShell,
+    environmentVariablesRequiredByDocker,
+    environmentVariablesRequiredByShell,
   };
 }
 
@@ -78,9 +87,9 @@ function buildDockerCommand({
   image,
   environmentVariables = [],
   volumeConfigs = [],
-  workingDirectory = "",
-  user = "",
   additionalArguments = [],
+  workingDirectory,
+  user,
 }) {
   if (!image) {
     throw new Error("No Docker image provided.");
@@ -100,8 +109,6 @@ function buildDockerCommand({
 
   const environmentVariableArguments = buildEnvironmentVariableArguments(environmentVariables);
   const volumeArguments = buildMountVolumeArguments(volumeConfigs);
-  const userArguments = user && ["--user", user];
-  const workingDirectoryArguments = workingDirectory && ["-w", workingDirectory];
 
   const dockerArguments = ["docker", "run", "--rm"];
   if (environmentVariableArguments) {
@@ -110,11 +117,11 @@ function buildDockerCommand({
   if (volumeArguments) {
     dockerArguments.push(...volumeArguments);
   }
-  if (userArguments) {
-    dockerArguments.push(...userArguments);
+  if (user) {
+    dockerArguments.push("--user", user);
   }
-  if (workingDirectoryArguments) {
-    dockerArguments.push(...workingDirectoryArguments);
+  if (workingDirectory) {
+    dockerArguments.push("-w", workingDirectory);
   }
   if (additionalArguments) {
     dockerArguments.push(...additionalArguments);
@@ -155,18 +162,6 @@ function buildMountVolumeArguments(volumeConfigs) {
     .flat();
 }
 
-function generateRandomTemporaryPath() {
-  return `/tmp/kaholo_tmp_path_${generateRandomString()}`;
-}
-
-function generateRandomEnvironmentVariableName() {
-  return `KAHOLO_ENV_VAR_${generateRandomString().toUpperCase()}`;
-}
-
-function generateRandomString() {
-  return Math.random().toString(36).slice(2);
-}
-
 function assertVolumeConfigPropertiesExistence(volumeConfig = {}, propertyPaths = []) {
   propertyPaths.forEach((propertyPath) => {
     if (!_.has(volumeConfig, propertyPath)) {
@@ -176,12 +171,10 @@ function assertVolumeConfigPropertiesExistence(volumeConfig = {}, propertyPaths 
 }
 
 module.exports = {
-  mergeVolumeConfigsEnvironmentVariables,
+  extractEnvironmentVariablesFromVolumeConfigs,
   buildDockerCommand,
   createVolumeConfig,
   sanitizeCommand,
   buildEnvironmentVariableArguments,
   buildMountVolumeArguments,
-  generateRandomEnvironmentVariableName,
-  generateRandomTemporaryPath,
 };

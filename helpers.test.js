@@ -126,3 +126,29 @@ describe("extractPathsFromCommand", () => {
     expect(extractedPaths[1].argument).toMatch("'file://relative path/to the/file'");
   });
 });
+
+describe("Unique random functions", () => {
+  const testUniqueRandomFunction = (functionName, matchParam, sampleSize = 200) => {
+    const generatedValues = new Array(sampleSize).fill(0).map(helpers[functionName]);
+    const scannedValues = new Set();
+
+    generatedValues.forEach((generatedPath) => {
+      expect(scannedValues.has(generatedPath)).toBeFalsy();
+      scannedValues.add(generatedPath);
+
+      expect(generatedPath).toMatch(matchParam);
+    });
+  };
+
+  describe("generateRandomTemporaryPath", () => {
+    it("should create unique paths in /tmp directory", () => {
+      testUniqueRandomFunction("generateRandomTemporaryPath", /^\/tmp\/kaholo_tmp_path_[a-z0-9]+$/);
+    });
+  });
+
+  describe("generateRandomEnvironmentVariableName", () => {
+    it("should create unique environment variable names", () => {
+      testUniqueRandomFunction("generateRandomEnvironmentVariableName", /^KAHOLO_ENV_VAR_[A-Z0-9]+$/);
+    });
+  });
+});
