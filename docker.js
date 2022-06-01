@@ -87,7 +87,7 @@ function buildDockerCommand({
   image,
   environmentVariables = [],
   volumeConfigs = [],
-  additionalArguments,
+  additionalArguments = [],
   workingDirectory,
   user,
 }) {
@@ -117,7 +117,7 @@ function buildDockerCommand({
   if (volumeArguments.length) {
     dockerArguments.push(...volumeArguments);
   }
-  if (additionalArguments?.length) {
+  if (additionalArguments.length) {
     dockerArguments.push(...additionalArguments);
   }
   if (user) {
