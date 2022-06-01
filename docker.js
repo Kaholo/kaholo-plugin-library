@@ -117,14 +117,14 @@ function buildDockerCommand({
   if (volumeArguments.length) {
     dockerArguments.push(...volumeArguments);
   }
+  if (additionalArguments?.length) {
+    dockerArguments.push(...additionalArguments);
+  }
   if (user) {
     dockerArguments.push("--user", user);
   }
   if (workingDirectory) {
     dockerArguments.push("-w", workingDirectory);
-  }
-  if (additionalArguments) {
-    dockerArguments.push(...additionalArguments);
   }
   dockerArguments.push(image, command);
 
