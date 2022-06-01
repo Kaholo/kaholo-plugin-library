@@ -87,7 +87,7 @@ function buildDockerCommand({
   image,
   environmentVariables = [],
   volumeConfigs = [],
-  additionalArguments = [],
+  additionalArguments,
   workingDirectory,
   user,
 }) {
