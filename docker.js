@@ -111,15 +111,9 @@ function buildDockerCommand({
   const volumeArguments = buildMountVolumeArguments(volumeConfigs);
 
   const dockerArguments = ["docker", "run", "--rm"];
-  if (environmentVariableArguments.length) {
-    dockerArguments.push(...environmentVariableArguments);
-  }
-  if (volumeArguments.length) {
-    dockerArguments.push(...volumeArguments);
-  }
-  if (additionalArguments.length) {
-    dockerArguments.push(...additionalArguments);
-  }
+  dockerArguments.push(...environmentVariableArguments);
+  dockerArguments.push(...volumeArguments);
+  dockerArguments.push(...additionalArguments);
   if (user) {
     dockerArguments.push("--user", user);
   }
