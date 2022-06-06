@@ -47,6 +47,59 @@ describe("temporaryFileSentinel", () => {
   });
 });
 
+describe("multipleTemporaryFileSentinels", () => {
+  it("should create multiple temporary files and clean up afterwards", async () => {
+    const files = {
+      file1: ["some-content"],
+      file2: ["also-some-content", "more-content", "content"],
+      file3: ["some-other-content", "testing content"],
+    };
+    const temporaryFilePaths = [];
+
+    await helpers.multipleTemporaryFileSentinels(
+      files,
+      async (filePaths) => {
+        temporaryFilePaths.push(...Object.values(filePaths));
+        return Promise.all(
+          Object.entries(files).map(async ([fileIndex, fileContent]) => {
+            expect(filePaths[fileIndex]).toBeDefined();
+
+            const { stdout } = await exec(`cat ${filePaths[fileIndex]}`);
+            expect(stdout.trim()).toEqual(fileContent.join("\n"));
+          }),
+        );
+      },
+    );
+
+    expect(temporaryFilePaths.length).toEqual(Object.keys(files).length);
+    expect(temporaryFilePaths).toContainEqual(expect.any(String));
+
+    temporaryFilePaths.forEach((temporaryFilePath) => {
+      expect(() => open(temporaryFilePath)).rejects.toThrowError(`ENOENT: no such file or directory, open '${temporaryFilePath}'`);
+    });
+  });
+
+  it("should clean up temporary files in case of error in callback function", async () => {
+    const files = {
+      file1: ["content"],
+      file2: ["content"],
+    };
+    const temporaryFilePaths = [];
+
+    await helpers.multipleTemporaryFileSentinels(
+      files,
+      (filePaths) => {
+        temporaryFilePaths.push(...Object.values(filePaths));
+        throw new Error();
+      },
+    ).catch(() => {}); // Ignore error
+
+    temporaryFilePaths.forEach((temporaryFilePath) => {
+      expect(() => open(temporaryFilePath)).rejects.toThrowError(`ENOENT: no such file or directory, open '${temporaryFilePath}'`);
+    });
+  });
+});
+
 describe("extractPathsFromCommand", () => {
   it("should extract all paths", () => {
     const commandString = "mkdir /tmp/dir /tmp/dir2/";

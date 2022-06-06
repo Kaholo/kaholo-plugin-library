@@ -62,6 +62,39 @@ async function temporaryFileSentinel(fileDataArray, functionToWatch) {
   }
 }
 
+async function multipleTemporaryFileSentinels(fileContentsObject, functionToWatch) {
+  const temporaryFilePathsEntries = await Promise.all(
+    Object.keys(fileContentsObject).map(async (fileIndex) => {
+      const { stderr, stdout } = await exec(CREATE_TEMPORARY_FILE_LINUX_COMMAND);
+      if (stderr) {
+        throw new Error(`Failed to create temporary file: ${stderr}`);
+      }
+      return [fileIndex, stdout.trim()];
+    }),
+  );
+
+  const fileHandlesEntries = await Promise.all(
+    temporaryFilePathsEntries.map(async ([fileIndex, temporaryFilePath]) => {
+      const fileHandle = await open(temporaryFilePath, "a");
+      const fileData = fileContentsObject[fileIndex].join("\n");
+      await writeFile(fileHandle, fileData);
+
+      return [temporaryFilePath, fileHandle];
+    }),
+  );
+
+  try {
+    await functionToWatch(Object.fromEntries(temporaryFilePathsEntries));
+  } finally {
+    await Promise.all(
+      fileHandlesEntries.map(async ([temporaryFilePath, fileHandle]) => {
+        await fileHandle.close();
+        await unlink(temporaryFilePath);
+      }),
+    );
+  }
+}
+
 function extractPathsFromCommand(commandString, regex = DEFAULT_PATH_ARGUMENT_REGEX) {
   const matches = [...commandString.matchAll(regex)];
 
@@ -137,6 +170,7 @@ function generateRandomString() {
 module.exports = {
   readActionArguments,
   temporaryFileSentinel,
+  multipleTemporaryFileSentinels,
   extractPathsFromCommand,
   generateRandomTemporaryPath,
   generateRandomEnvironmentVariableName,
