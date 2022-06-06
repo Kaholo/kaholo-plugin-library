@@ -69,6 +69,7 @@ async function multipleTemporaryFileSentinels(fileContentsObject, functionToWatc
       if (stderr) {
         throw new Error(`Failed to create temporary file: ${stderr}`);
       }
+
       return [fileIndex, stdout.trim()];
     }),
   );
