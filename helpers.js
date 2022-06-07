@@ -62,7 +62,7 @@ async function temporaryFileSentinel(fileDataArray, functionToWatch) {
   }
 }
 
-async function multipleTemporaryFileSentinels(fileContentsObject, functionToWatch) {
+async function multipleTemporaryFilesSentinel(fileContentsObject, functionToWatch) {
   const temporaryFilePathsEntries = await Promise.all(
     Object.keys(fileContentsObject).map(async (fileIndex) => {
       const { stderr, stdout } = await exec(CREATE_TEMPORARY_FILE_LINUX_COMMAND);
@@ -171,7 +171,7 @@ function generateRandomString() {
 module.exports = {
   readActionArguments,
   temporaryFileSentinel,
-  multipleTemporaryFileSentinels,
+  multipleTemporaryFilesSentinel,
   extractPathsFromCommand,
   generateRandomTemporaryPath,
   generateRandomEnvironmentVariableName,

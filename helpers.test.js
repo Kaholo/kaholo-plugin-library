@@ -47,7 +47,7 @@ describe("temporaryFileSentinel", () => {
   });
 });
 
-describe("multipleTemporaryFileSentinels", () => {
+describe("multipleTemporaryFilesSentinel", () => {
   it("should create multiple temporary files and clean up afterwards", async () => {
     const files = {
       file1: ["some-content"],
@@ -56,7 +56,7 @@ describe("multipleTemporaryFileSentinels", () => {
     };
     const temporaryFilePaths = [];
 
-    await helpers.multipleTemporaryFileSentinels(
+    await helpers.multipleTemporaryFilesSentinel(
       files,
       async (filePaths) => {
         temporaryFilePaths.push(...Object.values(filePaths));
@@ -86,7 +86,7 @@ describe("multipleTemporaryFileSentinels", () => {
     };
     const temporaryFilePaths = [];
 
-    await helpers.multipleTemporaryFileSentinels(
+    await helpers.multipleTemporaryFilesSentinel(
       files,
       (filePaths) => {
         temporaryFilePaths.push(...Object.values(filePaths));
