@@ -4,9 +4,9 @@ const {
   generateRandomTemporaryPath,
 } = require("./helpers");
 
-function createVolumeConfig(path) {
+function createVolumeDefinition(path) {
   if (!path) {
-    throw new Error("Path is required to create Volume Config.");
+    throw new Error("Path is required to create Volume Definition.");
   }
   if (!_.isString(path)) {
     throw new Error("Path parameter must be a string.");
@@ -18,18 +18,12 @@ function createVolumeConfig(path) {
 
   return {
     path: {
-      environmentVariable: {
-        name: pathEnvironmentVariableName,
-        value: path,
-      },
-      value: `$${pathEnvironmentVariableName}`,
+      name: pathEnvironmentVariableName,
+      value: path,
     },
     mountPoint: {
-      environmentVariable: {
-        name: mountPointEnvironmentVariableName,
-        value: mountPoint,
-      },
-      value: `$${mountPointEnvironmentVariableName}`,
+      name: mountPointEnvironmentVariableName,
+      value: mountPoint,
     },
   };
 }
@@ -47,46 +41,11 @@ function sanitizeCommand(command, commandPrefix) {
   return `sh -c ${JSON.stringify(commandWithPrefix)}`;
 }
 
-function extractEnvironmentVariablesFromVolumeConfigs(volumeConfigs) {
-  if (!volumeConfigs || !_.isArray(volumeConfigs)) {
-    throw new Error("Volume Configs parameter must be an array of objects.");
-  }
-
-  const environmentVariablesRequiredByDocker = volumeConfigs.reduce((acc, curr) => {
-    assertVolumeConfigPropertiesExistence(curr, [
-      "mountPoint.environmentVariable.name",
-      "mountPoint.environmentVariable.value",
-    ]);
-
-    return {
-      ...acc,
-      [curr.mountPoint.environmentVariable.name]: curr.mountPoint.environmentVariable.value,
-    };
-  }, {});
-
-  const environmentVariablesRequiredByShell = volumeConfigs.reduce((acc, curr) => {
-    assertVolumeConfigPropertiesExistence(curr, [
-      "path.environmentVariable.name",
-      "path.environmentVariable.value",
-    ]);
-
-    return {
-      ...acc,
-      [curr.path.environmentVariable.name]: curr.path.environmentVariable.value,
-    };
-  }, environmentVariablesRequiredByDocker);
-
-  return {
-    environmentVariablesRequiredByDocker,
-    environmentVariablesRequiredByShell,
-  };
-}
-
 function buildDockerCommand({
   command,
   image,
-  environmentVariables = [],
-  volumeConfigs = [],
+  environmentVariables = {},
+  volumeDefinitionsArray = [],
   additionalArguments = [],
   workingDirectory,
   user,
@@ -108,7 +67,7 @@ function buildDockerCommand({
   }
 
   const environmentVariableArguments = buildEnvironmentVariableArguments(environmentVariables);
-  const volumeArguments = buildMountVolumeArguments(volumeConfigs);
+  const volumeArguments = buildMountVolumeArguments(volumeDefinitionsArray);
 
   const dockerArguments = ["docker", "run", "--rm"];
   dockerArguments.push(...environmentVariableArguments);
@@ -125,49 +84,36 @@ function buildDockerCommand({
   return dockerArguments.join(" ");
 }
 
-function buildEnvironmentVariableArguments(environmentVariableNames) {
+function buildEnvironmentVariableArguments(environmentVariables) {
   if (
-    !environmentVariableNames
-    || !_.isArray(environmentVariableNames)
-    || _.some(environmentVariableNames, (variableName) => !_.isString(variableName))
+    !environmentVariables
+    || !_.isObject(environmentVariables)
+    || _.isArray(environmentVariables)
   ) {
-    throw new Error("Environment Variable Names parameter must be an array of strings.");
+    throw new Error("environmentVariables parameter must be an object.");
   }
 
-  return environmentVariableNames
-    .map((variableName) => ["-e", variableName])
+  return Object.entries(environmentVariables)
+    .map(([name, value]) => ["-e", `${name}=${value}`])
     .flat();
 }
 
-function buildMountVolumeArguments(volumeConfigs) {
-  if (!volumeConfigs || !_.isArray(volumeConfigs)) {
-    throw new Error("Volume Configs parameter must be an array of objects.");
+function buildMountVolumeArguments(volumeDefinitions) {
+  if (!volumeDefinitions || !_.isArray(volumeDefinitions)) {
+    throw new Error("volumeDefinitions parameter must be an array of objects.");
   }
 
-  return volumeConfigs
-    .map((volumeConfig) => {
-      assertVolumeConfigPropertiesExistence(volumeConfig, [
-        "path.value",
-        "mountPoint.value",
-      ]);
-
-      return ["-v", `${volumeConfig.path.value}:${volumeConfig.mountPoint.value}`];
-    })
+  return volumeDefinitions
+    .map((definition) => ([
+      "-v",
+      `$${definition.path.name}:$${definition.mountPoint.name}`,
+    ]))
     .flat();
-}
-
-function assertVolumeConfigPropertiesExistence(volumeConfig = {}, propertyPaths = []) {
-  propertyPaths.forEach((propertyPath) => {
-    if (!_.has(volumeConfig, propertyPath)) {
-      throw new Error(`Volume Config property "${propertyPath}" is missing on: ${JSON.stringify(volumeConfig)}`);
-    }
-  });
 }
 
 module.exports = {
-  extractEnvironmentVariablesFromVolumeConfigs,
   buildDockerCommand,
-  createVolumeConfig,
+  createVolumeDefinition,
   sanitizeCommand,
   buildEnvironmentVariableArguments,
   buildMountVolumeArguments,

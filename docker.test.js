@@ -1,39 +1,35 @@
 const { docker } = require(".");
 
 const ENVIRONMENT_VAR_NAME_REGEX = /^KAHOLO_ENV_VAR_[A-Z0-9]+$/;
-const ENVIRONMENT_VAR_REGEX = /^\$KAHOLO_ENV_VAR_[A-Z0-9]+$/;
 const TEMPORARY_PATH_REGEX = /^\/tmp\/kaholo_tmp_path_[a-z0-9]+$/;
 
 describe("Docker helper functions", () => {
-  describe("createVolumeConfig", () => {
-    it("should correctly create a valid Volume Config", () => {
+  describe("createVolumeDefinition", () => {
+    it("should correctly create a valid Volume Definition", () => {
       const pathOnAgent = "/path/to/file";
-      const volumeConfig = docker.createVolumeConfig(pathOnAgent);
+      const volumeDefinition = docker.createVolumeDefinition(pathOnAgent);
 
-      expect(volumeConfig).toBeDefined();
+      expect(volumeDefinition).toBeDefined();
 
-      expect(volumeConfig.path.value).toMatch(ENVIRONMENT_VAR_REGEX);
-      expect(volumeConfig.mountPoint.value).toMatch(ENVIRONMENT_VAR_REGEX);
+      expect(volumeDefinition.path.name).toMatch(ENVIRONMENT_VAR_NAME_REGEX);
+      expect(volumeDefinition.mountPoint.name).toMatch(ENVIRONMENT_VAR_NAME_REGEX);
 
-      expect(volumeConfig.path.environmentVariable.name).toMatch(ENVIRONMENT_VAR_NAME_REGEX);
-      expect(volumeConfig.mountPoint.environmentVariable.name).toMatch(ENVIRONMENT_VAR_NAME_REGEX);
-
-      expect(volumeConfig.path.environmentVariable.value).toMatch(pathOnAgent);
-      expect(volumeConfig.mountPoint.environmentVariable.value).toMatch(TEMPORARY_PATH_REGEX);
+      expect(volumeDefinition.path.value).toMatch(pathOnAgent);
+      expect(volumeDefinition.mountPoint.value).toMatch(TEMPORARY_PATH_REGEX);
     });
 
-    it("should fail to create a Volume Config with nil path", () => {
+    it("should fail to create a Volume Definition with nil path", () => {
       const invalidPaths = [null, undefined, ""];
 
       invalidPaths.forEach((invalidPath) => {
-        expect(docker.createVolumeConfig.bind(null, invalidPath)).toThrowError("Path is required to create Volume Config.");
+        expect(docker.createVolumeDefinition.bind(null, invalidPath)).toThrowError("Path is required to create Volume Definition.");
       });
     });
 
-    it("should fail to create a Volume Config with non-string path", () => {
+    it("should fail to create a Volume Definition with non-string path", () => {
       const nonStringPath = { path: "/path/to/file" };
 
-      expect(docker.createVolumeConfig.bind(null, nonStringPath)).toThrowError("Path parameter must be a string.");
+      expect(docker.createVolumeDefinition.bind(null, nonStringPath)).toThrowError("Path parameter must be a string.");
     });
   });
 
@@ -76,50 +72,6 @@ describe("Docker helper functions", () => {
     });
   });
 
-  describe("extractEnvironmentVariablesFromVolumeConfigs", () => {
-    it("should correctly extract environment variables", () => {
-      const {
-        environmentVariablesRequiredByDocker,
-        environmentVariablesRequiredByShell,
-      } = docker.extractEnvironmentVariablesFromVolumeConfigs([
-        docker.createVolumeConfig("/path/to/file1"),
-        docker.createVolumeConfig("/path/to/file2"),
-      ]);
-
-      expect(Object.keys(environmentVariablesRequiredByShell).length).toEqual(4);
-      expect(Object.keys(environmentVariablesRequiredByDocker).length).toEqual(2);
-
-      Object.keys(environmentVariablesRequiredByShell).forEach((envName) => {
-        expect(envName).toMatch(ENVIRONMENT_VAR_NAME_REGEX);
-      });
-    });
-
-    it("should throw an error if a Volume Config is invalid", () => {
-      const invalidVolumeConfig = {
-        path: {
-          environmentVariable: {},
-        },
-      };
-
-      expect(
-        docker.extractEnvironmentVariablesFromVolumeConfigs.bind(null, [invalidVolumeConfig]),
-      ).toThrowError(`Volume Config property "mountPoint.environmentVariable.name" is missing on: ${JSON.stringify(invalidVolumeConfig)}`);
-    });
-
-    it("should throw an error if there are no passed Volume Configs", () => {
-      expect(
-        docker.extractEnvironmentVariablesFromVolumeConfigs,
-      ).toThrowError("Volume Configs parameter must be an array of objects.");
-
-      const invalidVolumeConfigsParams = [null, {}, undefined, 3, "invalid"];
-      invalidVolumeConfigsParams.forEach((invalidParam) => {
-        expect(
-          docker.extractEnvironmentVariablesFromVolumeConfigs.bind(null, invalidParam),
-        ).toThrowError("Volume Configs parameter must be an array of objects.");
-      });
-    });
-  });
-
   describe("buildDockerCommand", () => {
     it("should build a valid docker command with no extra options", () => {
       const command = "echo hello world";
@@ -149,24 +101,23 @@ describe("Docker helper functions", () => {
     it("should build a valid docker command with environment variables and volumes", () => {
       const command = "echo hello world!";
       const image = "test/image-3";
-      const volumeConfigs = [docker.createVolumeConfig("/path/to/file")];
-      const environmentVariables = (
-        docker.extractEnvironmentVariablesFromVolumeConfigs(volumeConfigs)
-      );
+      const volumeDefinition = docker.createVolumeDefinition("/path/to/file");
+      const dockerEnvironmentVariables = {
+        [volumeDefinition.mountPoint.name]: volumeDefinition.mountPoint.value,
+      };
 
       const dockerCommand = docker.buildDockerCommand({
         command,
         image,
-        volumeConfigs,
-        environmentVariables: (
-          Object.keys(environmentVariables.environmentVariablesRequiredByDocker)
-        ),
+        volumeDefinitionsArray: [volumeDefinition],
+        environmentVariables: dockerEnvironmentVariables,
       });
 
-      const environmentVariableKeys = (
-        Object.keys(environmentVariables.environmentVariablesRequiredByDocker)
-      );
-      const expectedDockerCommand = `docker run --rm -e ${environmentVariableKeys[0]} -v ${volumeConfigs[0].path.value}:${volumeConfigs[0].mountPoint.value} test/image-3 echo hello world!`;
+      const expectedDockerCommand = `\
+docker run --rm \
+-e ${volumeDefinition.mountPoint.name}=${volumeDefinition.mountPoint.value} \
+-v $${volumeDefinition.path.name}:$${volumeDefinition.mountPoint.name} \
+test/image-3 echo hello world!`;
 
       expect(dockerCommand).toEqual(expectedDockerCommand);
     });
@@ -219,19 +170,24 @@ describe("Docker helper functions", () => {
 
   describe("buildEnvironmentVariableArguments", () => {
     it("should return array of passed arguments with prepended \"-e\" elements", () => {
-      const environmentVariableNames = ["TEST_VAR", "SOME_OTHER_TEST_VAR"];
+      const environmentVariables = {
+        TEST_VAR: "TEST_VAR_VALUE",
+        SOME_OTHER_TEST_VAR: "SOME_OTHER_TEST_VAR_VALUE",
+      };
       const environmentArguments = (
-        docker.buildEnvironmentVariableArguments(environmentVariableNames)
+        docker.buildEnvironmentVariableArguments(environmentVariables)
       );
 
-      expect(environmentArguments).toStrictEqual(["-e", "TEST_VAR", "-e", "SOME_OTHER_TEST_VAR"]);
+      expect(environmentArguments).toStrictEqual([
+        "-e", `TEST_VAR=${environmentVariables.TEST_VAR}`,
+        "-e", `SOME_OTHER_TEST_VAR=${environmentVariables.SOME_OTHER_TEST_VAR}`,
+      ]);
     });
 
     it("should throw an error if invalid argument is passed", () => {
       const invalidArguments = [
         undefined,
         null,
-        {},
         "invalid",
         [1, "value"],
         [{}, "test"],
@@ -241,24 +197,24 @@ describe("Docker helper functions", () => {
       invalidArguments.forEach((invalidArgument) => {
         expect(
           docker.buildEnvironmentVariableArguments.bind(null, invalidArgument),
-        ).toThrowError("Environment Variable Names parameter must be an array of strings.");
+        ).toThrowError("environmentVariables parameter must be an object.");
       });
     });
   });
 
   describe("buildMountVolumeArguments", () => {
     it("should return valid array of volume docker arguments", () => {
-      const volumeConfigs = [
-        docker.createVolumeConfig("/path/to/file"),
-        docker.createVolumeConfig("/path/to/other/file"),
+      const volumeDefinitions = [
+        docker.createVolumeDefinition("/path/to/file"),
+        docker.createVolumeDefinition("/path/to/other/file"),
       ];
-      const mountVolumeArguments = docker.buildMountVolumeArguments(volumeConfigs);
+      const mountVolumeArguments = docker.buildMountVolumeArguments(volumeDefinitions);
 
       expect(mountVolumeArguments).toStrictEqual([
         "-v",
-        `${volumeConfigs[0].path.value}:${volumeConfigs[0].mountPoint.value}`,
+        `$${volumeDefinitions[0].path.name}:$${volumeDefinitions[0].mountPoint.name}`,
         "-v",
-        `${volumeConfigs[1].path.value}:${volumeConfigs[1].mountPoint.value}`,
+        `$${volumeDefinitions[1].path.name}:$${volumeDefinitions[1].mountPoint.name}`,
       ]);
     });
 
@@ -274,34 +230,8 @@ describe("Docker helper functions", () => {
       invalidArguments.forEach((invalidArgument) => {
         expect(
           docker.buildMountVolumeArguments.bind(null, invalidArgument),
-        ).toThrowError("Volume Configs parameter must be an array of objects.");
+        ).toThrowError("volumeDefinitions parameter must be an array of objects.");
       });
-    });
-
-    it("should throw an error if invalid Volume Config is passed", () => {
-      const invalidVolumeConfigs1 = [
-        {
-          path: {},
-          mountPoint: {},
-        },
-      ];
-
-      expect(
-        docker.buildMountVolumeArguments.bind(null, invalidVolumeConfigs1),
-      ).toThrowError(`Volume Config property "path.value" is missing on: ${JSON.stringify(invalidVolumeConfigs1[0])}`);
-
-      const invalidVolumeConfigs2 = [
-        {
-          path: {
-            value: "test-value",
-          },
-          mountPoint: {},
-        },
-      ];
-
-      expect(
-        docker.buildMountVolumeArguments.bind(null, invalidVolumeConfigs2),
-      ).toThrowError(`Volume Config property "mountPoint.value" is missing on: ${JSON.stringify(invalidVolumeConfigs2[0])}`);
     });
   });
 });
