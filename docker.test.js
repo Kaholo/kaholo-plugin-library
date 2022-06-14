@@ -233,5 +233,31 @@ test/image-3 echo hello world!`;
         ).toThrowError("volumeDefinitions parameter must be an array of objects.");
       });
     });
+
+    it("should throw an error if invalid Volume Config is passed", () => {
+      const invalidVolumeConfigs1 = [
+        {
+          path: {},
+          mountPoint: {},
+        },
+      ];
+
+      expect(
+        docker.buildMountVolumeArguments.bind(null, invalidVolumeConfigs1),
+      ).toThrowError(`Volume Config property "path.value" is missing on: ${JSON.stringify(invalidVolumeConfigs1[0])}`);
+
+      const invalidVolumeConfigs2 = [
+        {
+          path: {
+            value: "test-value",
+          },
+          mountPoint: {},
+        },
+      ];
+
+      expect(
+        docker.buildMountVolumeArguments.bind(null, invalidVolumeConfigs2),
+      ).toThrowError(`Volume Config property "mountPoint.value" is missing on: ${JSON.stringify(invalidVolumeConfigs2[0])}`);
+    });
   });
 });

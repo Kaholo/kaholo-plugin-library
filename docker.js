@@ -104,11 +104,26 @@ function buildMountVolumeArguments(volumeDefinitions) {
   }
 
   return volumeDefinitions
-    .map((definition) => ([
-      "-v",
-      `$${definition.path.name}:$${definition.mountPoint.name}`,
-    ]))
+    .map((definition) => {
+      assertVolumeConfigPropertiesExistence(definition, [
+        "path.value",
+        "mountPoint.value",
+      ]);
+
+      return [
+        "-v",
+        `$${definition.path.name}:$${definition.mountPoint.name}`,
+      ];
+    })
     .flat();
+}
+
+function assertVolumeConfigPropertiesExistence(volumeConfig = {}, propertyPaths = []) {
+  propertyPaths.forEach((propertyPath) => {
+    if (!_.has(volumeConfig, propertyPath)) {
+      throw new Error(`Volume Config property "${propertyPath}" is missing on: ${JSON.stringify(volumeConfig)}`);
+    }
+  });
 }
 
 module.exports = {
