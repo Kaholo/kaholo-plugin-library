@@ -115,7 +115,7 @@ describe("Docker helper functions", () => {
 
       const expectedDockerCommand = `\
 docker run --rm \
--e ${volumeDefinition.mountPoint.name}=${volumeDefinition.mountPoint.value} \
+-e ${volumeDefinition.mountPoint.name} \
 -v $${volumeDefinition.path.name}:$${volumeDefinition.mountPoint.name} \
 test/image-3 echo hello world!`;
 
@@ -179,8 +179,8 @@ test/image-3 echo hello world!`;
       );
 
       expect(environmentArguments).toStrictEqual([
-        "-e", `TEST_VAR=${environmentVariables.TEST_VAR}`,
-        "-e", `SOME_OTHER_TEST_VAR=${environmentVariables.SOME_OTHER_TEST_VAR}`,
+        "-e", "TEST_VAR",
+        "-e", "SOME_OTHER_TEST_VAR",
       ]);
     });
 

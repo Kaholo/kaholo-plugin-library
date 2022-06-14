@@ -94,7 +94,7 @@ function buildEnvironmentVariableArguments(environmentVariables) {
   }
 
   return Object.entries(environmentVariables)
-    .map(([name, value]) => ["-e", `${name}=${value}`])
+    .map(([name]) => ["-e", name])
     .flat();
 }
 
