@@ -205,3 +205,23 @@ describe("Unique random functions", () => {
     });
   });
 });
+
+describe("readActionArguments", () => {
+  const { readActionArguments } = helpers;
+
+  it("should fail if method definition is missing", () => {
+    expect(() => readActionArguments({}, {})).toThrow();
+  });
+
+  it("should parse parameters accordingly to the config", () => {});
+
+  it("should parse parameters and accounts accordingly to the config", () => {});
+
+  it("should use settings if parameters are missing", () => {});
+
+  it("should use defaultValue if parameters and settings are missing", () => {});
+
+  xit("should parse parameters accordingly to the config and validate them", () => {
+    // TODO add this case
+  });
+});

@@ -13,6 +13,7 @@ const FILE_PREFIX_REGEX = /^fileb?:\/\//;
 
 function readActionArguments(action, settings) {
   const method = loadMethodFromConfiguration(action.method.name);
+  const account = loadAccountFromConfiguration();
   const paramValues = removeUndefinedAndEmpty(action.params);
   const settingsValues = removeUndefinedAndEmpty(settings);
 
@@ -35,6 +36,24 @@ function readActionArguments(action, settings) {
       );
     }
   });
+
+  if (account) {
+    account.params.forEach((paramDefinition) => {
+      paramValues[paramDefinition.name] = parseMethodParameter(
+        paramDefinition,
+        paramValues[paramDefinition.name],
+        settingsValues[paramDefinition.name],
+      );
+
+      const { validationType } = paramDefinition;
+      if (validationType) {
+        validateParamValue(
+          paramValues[paramDefinition.name],
+          validationType,
+        );
+      }
+    });
+  }
 
   return removeUndefinedAndEmpty(paramValues);
 }
@@ -144,6 +163,11 @@ function validateParamValue(
 function loadMethodFromConfiguration(methodName) {
   const config = loadConfiguration();
   return config.methods.find((m) => m.name === methodName);
+}
+
+function loadAccountFromConfiguration() {
+  const config = loadConfiguration();
+  return config.auth;
 }
 
 function loadConfiguration() {
