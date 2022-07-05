@@ -12,9 +12,10 @@ function resolveParser(type) {
       return boolean;
     case "vault":
     case "options":
-    case "text":
     case "string":
       return string;
+    case "text":
+      return text;
     case "autocomplete":
       return autocomplete;
     case "array":
@@ -68,6 +69,12 @@ function string(value) {
   throw new Error(`Value ${value} is not a valid string`);
 }
 
+function text(value) {
+  if (_.isNil(value)) { return ""; }
+  if (_.isString(value)) { return value; }
+  throw new Error(`Value ${value} is not a valid text`);
+}
+
 function autocomplete(value) {
   if (_.isNil(value)) { return ""; }
   if (_.isString(value)) { return value; }
@@ -94,4 +101,5 @@ module.exports = {
   number,
   object,
   array,
+  text,
 };
