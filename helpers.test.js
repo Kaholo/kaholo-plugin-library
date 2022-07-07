@@ -315,9 +315,14 @@ describe("readActionArguments", () => {
     useAccountConfig();
 
     const EXAMPLE_SSH_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nasdasdasdasasd\n-----END OPENSSH PRIVATE KEY-----\n";
+    const account = {
+      email: "test@example.com",
+      password: "test123",
+    };
     const action = {
       method: { name: "testMethodTwo" },
       params: {
+        ...account,
         testParameterFour: "test",
         testParameterFive: EXAMPLE_SSH_KEY,
       },
@@ -333,9 +338,14 @@ describe("readActionArguments", () => {
     useAccountConfig();
 
     const EXAMPLE_INVALID_SSH_KEY = "INVALID SSH";
+    const account = {
+      email: "test@example.com",
+      password: "test123",
+    };
     const action = {
       method: { name: "testMethodTwo" },
       params: {
+        ...account,
         testParameterFour: "test",
         testParameterFive: EXAMPLE_INVALID_SSH_KEY,
       },
