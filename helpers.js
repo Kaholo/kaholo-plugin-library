@@ -1,5 +1,6 @@
 const _ = require("lodash");
 const { open, writeFile, unlink } = require("fs/promises");
+const path = require("path");
 const util = require("util");
 const exec = util.promisify(require("child_process").exec);
 
@@ -172,8 +173,10 @@ function loadAccountFromConfiguration() {
 
 function loadConfiguration() {
   try {
-    // eslint-disable-next-line global-require, import/no-unresolved
-    return require("../../../config.json");
+    const pluginModulePath = process.argv[2] || "../../../app.js";
+    const configPath = path.resolve(path.dirname(pluginModulePath), "config.json");
+    // eslint-disable-next-line global-require, import/no-unresolved, import/no-dynamic-require
+    return require(configPath);
   } catch (exception) {
     console.error(exception);
     throw new Error("Could not retrieve the plugin configuration");

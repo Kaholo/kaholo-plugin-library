@@ -1,0 +1,98 @@
+{
+  "name": "test-plugin",
+  "viewName": "Test Plugin",
+  "type": "executer",
+  "main": "app.js",
+  "execProgram": "node",
+  "description": "Test Plugin for testing things",
+  "version": "0.1.0",
+  "imgUrl": "logo.png",
+  "auth": {
+    "authId": "testPluginAccount",
+    "params": [
+      {
+        "name": "email",
+        "viewName": "Email",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "password",
+        "viewName": "Password",
+        "type": "vault",
+        "required": true
+      },
+      {
+        "name": "namespaceConfig",
+        "viewName": "Namespace Config",
+        "type": "text",
+        "parserType": "object"
+      },
+      {
+        "name": "objects",
+        "viewName": "Objects",
+        "type": "text",
+        "parserType": "array"
+      }
+    ]
+  },
+  "settings": [
+    {
+      "name": "testParameterFour",
+      "viewName": "Test Parameter Four",
+      "type": "string"
+    }
+  ],
+  "methods": [
+    {
+      "name": "testMethodOne",
+      "viewName": "Test Method One",
+      "params": [
+        {
+          "name": "testParameterOne",
+          "viewName": "Test Parameter One",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "testParameterTwo",
+          "viewName": "Test Parameter Two",
+          "type": "options",
+          "options": [
+            {
+              "id": "1",
+              "name": "Test 1"
+            }
+          ],
+          "default": "1",
+          "parserType": "int"
+        },
+        {
+          "name": "testParameterThree",
+          "viewName": "Test Parameter Three",
+          "type": "autocomplete",
+          "autocompleteType": "function",
+          "functionName": "testAutocomplete"
+        }
+      ]
+    },
+    {
+      "name": "testMethodTwo",
+      "viewName": "Test Method Two",
+      "params": [
+        {
+          "name": "testParameterFour",
+          "viewName": "Test Parameter Four",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "testParameterFive",
+          "viewName": "Test Parameter Five",
+          "type": "text",
+          "validationType": "ssh"
+        }
+      ]
+    }
+  ]
+}
