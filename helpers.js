@@ -1,11 +1,14 @@
 const _ = require("lodash");
 const { open, writeFile, unlink } = require("fs/promises");
-const path = require("path");
 const util = require("util");
 const exec = util.promisify(require("child_process").exec);
 
 const parsers = require("./parsers");
 const validators = require("./validators");
+const {
+  loadMethodFromConfiguration,
+  loadAccountFromConfiguration,
+} = require("./config-loader");
 
 const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp --tmpdir kaholo_plugin_library.XXX";
 const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
@@ -159,28 +162,6 @@ function validateParamValue(
 ) {
   const validate = validators.resolveValidationFunction(validationType);
   return validate(parameterValue);
-}
-
-function loadMethodFromConfiguration(methodName) {
-  const config = loadConfiguration();
-  return config.methods.find((m) => m.name === methodName);
-}
-
-function loadAccountFromConfiguration() {
-  const config = loadConfiguration();
-  return config.auth;
-}
-
-function loadConfiguration() {
-  try {
-    const pluginModulePath = process.argv[2] || "../../../app.js";
-    const configPath = path.resolve(path.dirname(pluginModulePath), "config.json");
-    // eslint-disable-next-line global-require, import/no-unresolved, import/no-dynamic-require
-    return require(configPath);
-  } catch (exception) {
-    console.error(exception);
-    throw new Error("Could not retrieve the plugin configuration");
-  }
 }
 
 function generateRandomTemporaryPath() {

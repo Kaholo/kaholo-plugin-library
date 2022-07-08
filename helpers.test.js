@@ -1,9 +1,14 @@
 const util = require("util");
 const exec = util.promisify(require("child_process").exec);
-const path = require("path");
 const { open } = require("fs/promises");
 
 const helpers = require("./helpers");
+const {
+  loadAccountFromConfiguration,
+  loadMethodFromConfiguration,
+} = require("./config-loader");
+
+jest.mock("./config-loader");
 
 describe("temporaryFileSentinel", () => {
   it("Should create and pass the file properly to the function", async () => {
@@ -210,148 +215,156 @@ describe("Unique random functions", () => {
 describe("readActionArguments", () => {
   const { readActionArguments } = helpers;
 
-  const useNoAccountConfig = () => process.argv.splice(2, 1, path.resolve(__dirname, "__mocks__", "no-account", "app.js"));
-  const useAccountConfig = () => process.argv.splice(2, 1, path.resolve(__dirname, "__mocks__", "with-account", "app.js"));
+  describe("testing config with account", () => {
+    beforeAll(() => {
+      // eslint-disable-next-line global-require
+      const accountConfig = require("./mocks/with-account/config.json");
+      loadMethodFromConfiguration.mockImplementation((methodName) => (
+        accountConfig.methods.find((m) => m.name === methodName)
+      ));
+      loadAccountFromConfiguration.mockImplementation(() => accountConfig.auth);
+    });
 
-  it("should fail if method definition is missing", () => {
-    useNoAccountConfig();
+    it("should parse parameters and accounts accordingly to the config", () => {
+      const account = {
+        email: "test@example.com",
+        password: "test123",
+        namespaceConfig: JSON.stringify({ name: "test-namespace" }),
+        objects: "object-1\nobject-2\nobject-3",
+      };
+      const action = {
+        method: { name: "testMethodOne" },
+        params: {
+          ...account,
+          testParameterOne: "test",
+          testParameterTwo: "1",
+          testParameterThree: { id: "autocomplete-item-1", value: "Autocomplete 1" },
+        },
+      };
+      const settings = {};
 
-    const action = {
-      method: { name: "nonExistentMethod" },
-    };
-    const settings = {};
+      const readArguments = readActionArguments(action, settings);
 
-    expect(() => readActionArguments(action, settings)).toThrowError("Could not find a method \"nonExistentMethod\" in config.json");
+      expect(readArguments.testParameterOne).toStrictEqual("test");
+      expect(readArguments.testParameterTwo).toEqual(1);
+      expect(readArguments.testParameterThree).toStrictEqual("autocomplete-item-1");
+      expect(readArguments.email).toStrictEqual("test@example.com");
+      expect(readArguments.password).toStrictEqual("test123");
+      expect(readArguments.namespaceConfig).toStrictEqual({ name: "test-namespace" });
+      expect(readArguments.objects).toStrictEqual(["object-1", "object-2", "object-3"]);
+    });
+
+    it("should parse parameters accordingly to the config and validate them", () => {
+      const EXAMPLE_SSH_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nasdasdasdasasd\n-----END OPENSSH PRIVATE KEY-----\n";
+      const account = {
+        email: "test@example.com",
+        password: "test123",
+      };
+      const action = {
+        method: { name: "testMethodTwo" },
+        params: {
+          ...account,
+          testParameterFour: "test",
+          testParameterFive: EXAMPLE_SSH_KEY,
+        },
+      };
+      const settings = {};
+
+      const readArguments = readActionArguments(action, settings);
+
+      expect(readArguments.testParameterFive).toStrictEqual(EXAMPLE_SSH_KEY);
+    });
+
+    it("should throw if no suitable parser is found", () => {
+      const EXAMPLE_INVALID_SSH_KEY = "INVALID SSH";
+      const account = {
+        email: "test@example.com",
+        password: "test123",
+      };
+      const action = {
+        method: { name: "testMethodTwo" },
+        params: {
+          ...account,
+          testParameterFour: "test",
+          testParameterFive: EXAMPLE_INVALID_SSH_KEY,
+        },
+      };
+      const settings = {};
+
+      expect(() => {
+        readActionArguments(action, settings);
+      }).toThrowError("Missing line feed character at the end of the file.");
+    });
   });
 
-  it("should parse parameters accordingly to the config", () => {
-    useNoAccountConfig();
+  describe("testing config with no account", () => {
+    beforeAll(() => {
+      loadMethodFromConfiguration.mockImplementation((methodName) => (
+        // eslint-disable-next-line global-require
+        require("./mocks/no-account/config.json").methods.find((m) => m.name === methodName)
+      ));
+      loadAccountFromConfiguration.mockImplementation(() => null);
+    });
 
-    const action = {
-      method: { name: "testMethodOne" },
-      params: {
-        testParameterOne: "test",
-        testParameterTwo: "1",
-        testParameterThree: { id: "autocomplete-item-1", value: "Autocomplete 1" },
-      },
-    };
-    const settings = {};
+    it("should fail if method definition is missing", () => {
+      const action = {
+        method: { name: "nonExistentMethod" },
+      };
+      const settings = {};
 
-    const readArguments = readActionArguments(action, settings);
+      expect(() => {
+        readActionArguments(action, settings);
+      }).toThrowError("Could not find a method \"nonExistentMethod\" in config.json");
+    });
 
-    expect(readArguments.testParameterOne).toStrictEqual("test");
-    expect(readArguments.testParameterTwo).toEqual(1);
-    expect(readArguments.testParameterThree).toStrictEqual("autocomplete-item-1");
-  });
+    it("should parse parameters accordingly to the config", () => {
+      const action = {
+        method: { name: "testMethodOne" },
+        params: {
+          testParameterOne: "test",
+          testParameterTwo: "1",
+          testParameterThree: { id: "autocomplete-item-1", value: "Autocomplete 1" },
+        },
+      };
+      const settings = {};
 
-  it("should parse parameters and accounts accordingly to the config", () => {
-    useAccountConfig();
+      const readArguments = readActionArguments(action, settings);
 
-    const account = {
-      email: "test@example.com",
-      password: "test123",
-      namespaceConfig: JSON.stringify({ name: "test-namespace" }),
-      objects: "object-1\nobject-2\nobject-3",
-    };
-    const action = {
-      method: { name: "testMethodOne" },
-      params: {
-        ...account,
-        testParameterOne: "test",
-        testParameterTwo: "1",
-        testParameterThree: { id: "autocomplete-item-1", value: "Autocomplete 1" },
-      },
-    };
-    const settings = {};
+      expect(readArguments.testParameterOne).toStrictEqual("test");
+      expect(readArguments.testParameterTwo).toEqual(1);
+      expect(readArguments.testParameterThree).toStrictEqual("autocomplete-item-1");
+    });
 
-    const readArguments = readActionArguments(action, settings);
+    it("should use settings if parameters are missing", () => {
+      const action = {
+        method: { name: "testMethodTwo" },
+        params: {
+          testParameterFour: null,
+        },
+      };
+      const settings = {
+        testParameterFour: "settings-test",
+      };
 
-    expect(readArguments.testParameterOne).toStrictEqual("test");
-    expect(readArguments.testParameterTwo).toEqual(1);
-    expect(readArguments.testParameterThree).toStrictEqual("autocomplete-item-1");
-    expect(readArguments.email).toStrictEqual("test@example.com");
-    expect(readArguments.password).toStrictEqual("test123");
-    expect(readArguments.namespaceConfig).toStrictEqual({ name: "test-namespace" });
-    expect(readArguments.objects).toStrictEqual(["object-1", "object-2", "object-3"]);
-  });
+      const readArguments = readActionArguments(action, settings);
 
-  it("should use settings if parameters are missing", () => {
-    useNoAccountConfig();
+      expect(readArguments.testParameterFour).toStrictEqual("settings-test");
+    });
 
-    const action = {
-      method: { name: "testMethodTwo" },
-      params: {
-        testParameterFour: null,
-      },
-    };
-    const settings = {
-      testParameterFour: "settings-test",
-    };
-
-    const readArguments = readActionArguments(action, settings);
-
-    expect(readArguments.testParameterFour).toStrictEqual("settings-test");
-  });
-
-  it("should use defaultValue if parameters and settings are missing", () => {
-    useNoAccountConfig();
-
-    const action = {
-      method: { name: "testMethodThree" },
-      params: {
+    it("should use defaultValue if parameters and settings are missing", () => {
+      const action = {
+        method: { name: "testMethodThree" },
+        params: {
+          testParameterFive: null,
+        },
+      };
+      const settings = {
         testParameterFive: null,
-      },
-    };
-    const settings = {
-      testParameterFive: null,
-    };
+      };
 
-    const readArguments = readActionArguments(action, settings);
+      const readArguments = readActionArguments(action, settings);
 
-    expect(readArguments.testParameterFive).toStrictEqual("line-1\nline-2");
-  });
-
-  it("should parse parameters accordingly to the config and validate them", () => {
-    useAccountConfig();
-
-    const EXAMPLE_SSH_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nasdasdasdasasd\n-----END OPENSSH PRIVATE KEY-----\n";
-    const account = {
-      email: "test@example.com",
-      password: "test123",
-    };
-    const action = {
-      method: { name: "testMethodTwo" },
-      params: {
-        ...account,
-        testParameterFour: "test",
-        testParameterFive: EXAMPLE_SSH_KEY,
-      },
-    };
-    const settings = {};
-
-    const readArguments = readActionArguments(action, settings);
-
-    expect(readArguments.testParameterFive).toStrictEqual(EXAMPLE_SSH_KEY);
-  });
-
-  it("should throw if no suitable parser is found", () => {
-    useAccountConfig();
-
-    const EXAMPLE_INVALID_SSH_KEY = "INVALID SSH";
-    const account = {
-      email: "test@example.com",
-      password: "test123",
-    };
-    const action = {
-      method: { name: "testMethodTwo" },
-      params: {
-        ...account,
-        testParameterFour: "test",
-        testParameterFive: EXAMPLE_INVALID_SSH_KEY,
-      },
-    };
-    const settings = {};
-
-    expect(() => readActionArguments(action, settings)).toThrowError("Missing line feed character at the end of the file.");
+      expect(readArguments.testParameterFive).toStrictEqual("line-1\nline-2");
+    });
   });
 });
