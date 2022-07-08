@@ -218,7 +218,7 @@ describe("readActionArguments", () => {
   describe("testing config with account", () => {
     beforeAll(() => {
       // eslint-disable-next-line global-require
-      const accountConfig = require("./mocks/with-account/config.json");
+      const accountConfig = require("./mocks/account-config.json");
       loadMethodFromConfiguration.mockImplementation((methodName) => (
         accountConfig.methods.find((m) => m.name === methodName)
       ));
@@ -301,7 +301,7 @@ describe("readActionArguments", () => {
     beforeAll(() => {
       loadMethodFromConfiguration.mockImplementation((methodName) => (
         // eslint-disable-next-line global-require
-        require("./mocks/no-account/config.json").methods.find((m) => m.name === methodName)
+        require("./mocks/no-account-config.json").methods.find((m) => m.name === methodName)
       ));
       loadAccountFromConfiguration.mockImplementation(() => null);
     });
