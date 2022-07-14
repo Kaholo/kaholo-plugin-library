@@ -22,9 +22,29 @@ function resolveParser(type) {
       return array;
     case "sshKey":
       return string;
+    case "json":
+      return json;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
+}
+
+function json(value) {
+  if (!_.isString(value) && !_.isPlainObject(value)) {
+    throw new Error(`Couldn't parse provided value as JSON: ${value}`);
+  }
+
+  if (_.isPlainObject(value)) {
+    return value;
+  }
+
+  const entries = value
+    .split("\n")
+    .map((line) => {
+      const [key, ...rest] = line.split("=");
+      return [key, rest.join("=")];
+    });
+  return Object.fromEntries(entries);
 }
 
 function object(value) {
@@ -102,4 +122,5 @@ module.exports = {
   object,
   array,
   text,
+  json,
 };
