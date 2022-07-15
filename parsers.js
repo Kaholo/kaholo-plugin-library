@@ -22,14 +22,14 @@ function resolveParser(type) {
       return array;
     case "sshKey":
       return string;
-    case "json":
-      return json;
+    case "keyValuePairs":
+      return keyValuePairs;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
 }
 
-function json(value) {
+function keyValuePairs(value) {
   if (!_.isString(value) && !_.isPlainObject(value)) {
     throw new Error(`Couldn't parse provided value as JSON: ${value}`);
   }
@@ -38,13 +38,13 @@ function json(value) {
     return value;
   }
 
-  const keyValuePairs = value
+  const entries = value
     .split("\n")
     .map((line) => {
       const [key, ...rest] = line.split("=");
       return [key, rest.join("=")];
     });
-  return Object.fromEntries(keyValuePairs);
+  return Object.fromEntries(entries);
 }
 
 function object(value) {
@@ -122,5 +122,5 @@ module.exports = {
   object,
   array,
   text,
-  json,
+  keyValuePairs,
 };
