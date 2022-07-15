@@ -38,13 +38,13 @@ function json(value) {
     return value;
   }
 
-  const entries = value
+  const keyValuePairs = value
     .split("\n")
     .map((line) => {
       const [key, ...rest] = line.split("=");
       return [key, rest.join("=")];
     });
-  return Object.fromEntries(entries);
+  return Object.fromEntries(keyValuePairs);
 }
 
 function object(value) {
