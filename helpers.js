@@ -183,4 +183,5 @@ module.exports = {
   extractPathsFromCommand,
   generateRandomTemporaryPath,
   generateRandomEnvironmentVariableName,
+  generateRandomString,
 };
