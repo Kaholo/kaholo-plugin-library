@@ -11,15 +11,17 @@ function mapAutocompleteFuncParamsToObject(params) {
   return params.reduce((acc, {
     value, name, type, valueType,
   }) => {
-    if (_.isNil(value)) {
-      throw new Error("Failed to map one of autocomplete parameters to object - `value` field is required");
-    }
     if (_.isNil(name)) {
       throw new Error("Failed to map one of autocomplete parameters to object - `name` field is required");
     }
     if (_.isNil(type || valueType)) {
       throw new Error("Failed to map one of autocomplete parameters to object - either `type` or `valueType` field is required");
     }
+
+    if (_.isNil(value)) {
+      return acc;
+    }
+
     return {
       ...acc,
       [name]: parsers.resolveParser(type || valueType)(value),
