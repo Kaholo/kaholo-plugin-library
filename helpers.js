@@ -10,15 +10,10 @@ const {
   loadAccountFromConfiguration,
 } = require("./config-loader");
 
+const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_library.XXXXXX";
 const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
 const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
 const FILE_PREFIX_REGEX = /^fileb?:\/\//;
-
-async function getCreateTemporaryFileCommand() {
-  const mktempVersionResult = await exec("mktemp --version");
-  const tmpParam = mktempVersionResult.includes("BusyBox") ? "-p /tmp" : "--tmpdir";
-  return `mktemp ${tmpParam} kaholo_plugin_library.XXXXXX`;
-}
 
 function readActionArguments(action, settings) {
   const method = loadMethodFromConfiguration(action.method.name);
@@ -71,7 +66,7 @@ async function temporaryFileSentinel(fileDataArray, functionToWatch) {
   const {
     stderr,
     stdout,
-  } = await exec(await getCreateTemporaryFileCommand());
+  } = await exec(CREATE_TEMPORARY_FILE_LINUX_COMMAND);
   if (stderr) {
     throw new Error(`Failed to create temporary file: ${stderr}`);
   }
@@ -93,7 +88,7 @@ async function temporaryFileSentinel(fileDataArray, functionToWatch) {
 async function multipleTemporaryFilesSentinel(fileContentsObject, functionToWatch) {
   const temporaryFilePathsEntries = await Promise.all(
     Object.keys(fileContentsObject).map(async (fileIndex) => {
-      const { stderr, stdout } = await exec(await getCreateTemporaryFileCommand());
+      const { stderr, stdout } = await exec(CREATE_TEMPORARY_FILE_LINUX_COMMAND);
       if (stderr) {
         throw new Error(`Failed to create temporary file: ${stderr}`);
       }
