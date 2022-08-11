@@ -10,7 +10,7 @@ const {
   loadAccountFromConfiguration,
 } = require("./config-loader");
 
-const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp --tmpdir kaholo_plugin_library.XXX";
+const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_library.XXXXXX";
 const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
 const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
 const FILE_PREFIX_REGEX = /^fileb?:\/\//;
