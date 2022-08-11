@@ -1,6 +1,6 @@
 {
   "name": "@kaholo/plugin-library",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Kaholo library for plugins",
   "main": "kaholo-plugin-library.js",
   "scripts": {
