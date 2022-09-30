@@ -178,10 +178,9 @@ test/image-3 echo hello world!`;
         docker.buildEnvironmentVariableArguments(environmentVariables)
       );
 
-      expect(environmentArguments).toStrictEqual([
-        "-e", "TEST_VAR",
-        "-e", "SOME_OTHER_TEST_VAR",
-      ]);
+      expect(environmentArguments).toStrictEqual(
+        "-e TEST_VAR -e SOME_OTHER_TEST_VAR",
+      );
     });
 
     it("should throw an error if invalid argument is passed", () => {
