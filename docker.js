@@ -94,8 +94,10 @@ function buildEnvironmentVariableArguments(environmentVariables) {
   }
 
   return Object.entries(environmentVariables)
-    .map(([name]) => ["-e", name])
-    .flat();
+    .reduce(
+      (acc, [name]) => `${acc}-e ${name} `,
+      "",
+    ).trim();
 }
 
 function buildMountVolumeArguments(volumeDefinitions) {
