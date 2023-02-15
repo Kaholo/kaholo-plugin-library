@@ -33,7 +33,7 @@ function resolveParser(type) {
   }
 }
 
-async function filePath(value) {
+async function filePath(value, options = {}) {
   if (!_.isString(value) && !_.isNil(value)) {
     throw new Error(`Couldn't parse provided value as file path: ${value}`);
   }
@@ -50,6 +50,9 @@ async function filePath(value) {
     result.exists = true;
   } catch {
     result.exists = false;
+    if (options.throwIfDoesntExist) {
+      throw new Error(`Path "${value}" does not exist on agent!`)
+    }
     return result;
   }
 

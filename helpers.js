@@ -156,8 +156,9 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
     return valueToParse;
   }
 
+  const parserOptions = paramDefinition.parserOptions;
   const parserToUse = paramDefinition.parserType || paramDefinition.type;
-  return parsers.resolveParser(parserToUse)(valueToParse);
+  return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
 }
 
 function validateParamValue(
