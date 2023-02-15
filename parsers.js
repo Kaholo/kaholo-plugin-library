@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const _ = require("lodash");
 
 function resolveParser(type) {
@@ -24,9 +26,41 @@ function resolveParser(type) {
       return string;
     case "keyValuePairs":
       return keyValuePairs;
+    case "filePath":
+      return filePath;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
+}
+
+async function filePath(value) {
+  if (!_.isString(value) && !_.isNil(value)) {
+    throw new Error(`Couldn't parse provided value as file path: ${value}`);
+  }
+
+  const newValue = value || "./";
+  const absolutePath = path.resolve(newValue);
+  const result = {
+    passed: value,
+    absolutePath,
+  };
+
+  try {
+    await fs.promises.access(absolutePath, fs.constants.F_OK);
+    result.exists = true;
+  } catch {
+    result.exists = false;
+    return result;
+  }
+
+  const pathStat = await fs.promises.lstat(absolutePath);
+  if (pathStat.isDirectory()) {
+    result.type = "directory";
+  } else {
+    result.type = "file";
+  }
+
+  return result;
 }
 
 function keyValuePairs(value) {
@@ -123,4 +157,5 @@ module.exports = {
   array,
   text,
   keyValuePairs,
+  filePath,
 };

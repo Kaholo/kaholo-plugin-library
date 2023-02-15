@@ -5,13 +5,13 @@ const autocomplete = require("./autocomplete");
 
 function generatePluginMethod(method) {
   return async (action, settings) => {
-    const parameters = helpers.readActionArguments(action, settings);
-    return method(parameters, { action, settings }).then((result) => {
-      if (_.isNil(result) || _.isEmpty(result)) {
-        return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
-      }
-      return result;
-    });
+    const parameters = await helpers.readActionArguments(action, settings);
+
+    const result = await method(parameters, { action, settings });
+    if (_.isNil(result) || _.isEmpty(result)) {
+      return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
+    }
+    return result;
   };
 }
 
