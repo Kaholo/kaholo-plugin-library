@@ -51,7 +51,7 @@ async function filePath(value, options = {}) {
   } catch {
     result.exists = false;
     if (options.throwIfDoesntExist) {
-      throw new Error(`Path "${value}" does not exist on agent!`)
+      throw new Error(`Path "${value}" does not exist on agent!`);
     }
     return result;
   }
