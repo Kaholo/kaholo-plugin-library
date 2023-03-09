@@ -161,6 +161,14 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
   return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
 }
 
+function redactOutput() {
+  const ENTROPY_THRESHOLDS = [19, 19, 19, 19, 19, 24, 28, 33, 38];
+}
+
+function redactSecrets() {
+  const ENTROPY_THRESHOLDS = [19, 19, 19, 19, 19, 24, 28, 33, 38];
+}
+
 function validateParamValue(
   parameterValue,
   validationType,
@@ -189,4 +197,5 @@ module.exports = {
   generateRandomTemporaryPath,
   generateRandomEnvironmentVariableName,
   analyzePath: parsers.filePath,
+  redactOutput,
 };

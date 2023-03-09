@@ -3,6 +3,8 @@ const consts = require("./consts.json");
 const helpers = require("./helpers");
 const autocomplete = require("./autocomplete");
 
+const REDACT_SECRETS = true;
+
 function generatePluginMethod(method) {
   return async (action, settings) => {
     const parameters = await helpers.readActionArguments(action, settings);
@@ -11,6 +13,13 @@ function generatePluginMethod(method) {
     if (_.isNil(result) || _.isEmpty(result)) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
+    if (REDACT_SECRETS) {
+      return helpers.redactOutput({
+        input: result,
+        secrets: [],
+      });
+    }
+
     return result;
   };
 }
