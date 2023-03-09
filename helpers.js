@@ -1,6 +1,8 @@
 const _ = require("lodash");
 const { open, writeFile, unlink } = require("fs/promises");
 const util = require("util");
+const calculateStringEntropy = require("fast-password-entropy");
+
 const exec = util.promisify(require("child_process").exec);
 
 const parsers = require("./parsers");
@@ -9,23 +11,25 @@ const {
   loadMethodFromConfiguration,
   loadAccountFromConfiguration,
 } = require("./config-loader");
+const consts = require("./consts.json");
 
 const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_library.XXXXXX";
 const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
 const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
 const FILE_PREFIX_REGEX = /^fileb?:\/\//;
+const ENTROPY_THRESHOLDS = [19, 19, 19, 19, 19, 24, 28, 33, 38];
 
 async function readActionArguments(action, settings) {
-  const method = loadMethodFromConfiguration(action.method.name);
-  const account = loadAccountFromConfiguration();
+  const methodDefinition = loadMethodFromConfiguration(action.method.name);
+  const accountDefinition = loadAccountFromConfiguration();
   const paramValues = removeUndefinedAndEmpty(action.params);
   const settingsValues = removeUndefinedAndEmpty(settings);
 
-  if (_.isNil(method)) {
+  if (_.isNil(methodDefinition)) {
     throw new Error(`Could not find a method "${action.method.name}" in config.json`);
   }
 
-  const paramsParsingPromises = method.params.map(async (paramDefinition) => {
+  const paramsParsingPromises = methodDefinition.params.map(async (paramDefinition) => {
     paramValues[paramDefinition.name] = await parseMethodParameter(
       paramDefinition,
       paramValues[paramDefinition.name],
@@ -43,8 +47,8 @@ async function readActionArguments(action, settings) {
 
   await Promise.all(paramsParsingPromises);
 
-  if (account) {
-    const accountParsingPromises = account.params.map(async (paramDefinition) => {
+  if (accountDefinition) {
+    const accountParsingPromises = accountDefinition.params.map(async (paramDefinition) => {
       paramValues[paramDefinition.name] = await parseMethodParameter(
         paramDefinition,
         paramValues[paramDefinition.name],
@@ -161,12 +165,24 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
   return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
 }
 
-function redactOutput() {
-  const ENTROPY_THRESHOLDS = [19, 19, 19, 19, 19, 24, 28, 33, 38];
+function redactSecrets(input, secrets) {
+  const complexSecrets = secrets.filter((secret) => (
+    secret.length > 8 || calculateStringEntropy(secret) > ENTROPY_THRESHOLDS[secret.length]
+  ));
+
+  const stringifiedInput = JSON.stringify(input);
+  const redactedInput = complexSecrets.reduce((acc, cur) => (
+    acc.replace(JSON.stringify(cur).slice(1, -1), consts.REDACTED_PLACEHOLDER)
+  ), stringifiedInput);
+
+  return JSON.parse(redactedInput);
 }
 
-function redactSecrets() {
-  const ENTROPY_THRESHOLDS = [19, 19, 19, 19, 19, 24, 28, 33, 38];
+async function getVaultedParameters(params, methodDefinition) {
+  const vaultParams = Object.entries(params).filter(([paramName]) => methodDefinition.params.some(
+    (paramDefinition) => paramDefinition.type === "vault" && paramDefinition.name === paramName,
+  ));
+  return Object.fromEntries(vaultParams);
 }
 
 function validateParamValue(
@@ -197,5 +213,6 @@ module.exports = {
   generateRandomTemporaryPath,
   generateRandomEnvironmentVariableName,
   analyzePath: parsers.filePath,
-  redactOutput,
+  redactSecrets,
+  getVaultedParameters,
 };

@@ -2,22 +2,23 @@ const _ = require("lodash");
 const consts = require("./consts.json");
 const helpers = require("./helpers");
 const autocomplete = require("./autocomplete");
-
-const REDACT_SECRETS = true;
+const { loadMethodFromConfiguration } = require("./config-loader");
 
 function generatePluginMethod(method) {
   return async (action, settings) => {
+    const methodDefinition = loadMethodFromConfiguration(action.method.name);
     const parameters = await helpers.readActionArguments(action, settings);
 
     const result = await method(parameters, { action, settings });
     if (_.isNil(result) || _.isEmpty(result)) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
-    if (REDACT_SECRETS) {
-      return helpers.redactOutput({
-        input: result,
-        secrets: [],
-      });
+    if (methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS) {
+      const secrets = await helpers.getVaultedParameters(parameters, methodDefinition);
+      return helpers.redactSecrets(
+        result,
+        Object.values(secrets),
+      );
     }
 
     return result;
