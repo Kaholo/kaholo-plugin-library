@@ -9,14 +9,13 @@ function generatePluginMethod(method) {
     const methodDefinition = loadMethodFromConfiguration(action.method.name);
     const parameters = await helpers.readActionArguments(action, settings);
 
-    let secrets;
-    let disableLogsRedaction;
     const shouldRedactSecrets = methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS;
-
-    if (shouldRedactSecrets) {
-      secrets = await helpers.getVaultedParameters(parameters, methodDefinition);
-      disableLogsRedaction = helpers.redactConsoleLogs(Object.values(secrets));
-    }
+    const secrets = Object.values(
+      shouldRedactSecrets && await helpers.getVaultedParameters(parameters, methodDefinition),
+    );
+    const disableLogsRedaction = (
+      shouldRedactSecrets && helpers.redactConsoleLogs(secrets)
+    );
 
     const result = await method(parameters, { action, settings });
 
@@ -26,10 +25,7 @@ function generatePluginMethod(method) {
 
     if (shouldRedactSecrets) {
       disableLogsRedaction();
-      return helpers.redactSecrets(
-        result,
-        Object.values(secrets),
-      );
+      return helpers.redactSecrets(result, secrets);
     }
 
     return result;
