@@ -165,16 +165,16 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
 }
 
 function redactConsoleLogs(secrets) {
-  const createLogInterceptor = (originalFunction) => (...args) => {
+  const createRedactor = (originalFunction) => (...args) => {
     const redactedArgs = args.map((arg) => redactSecrets(arg, secrets));
     originalFunction(...redactedArgs);
   };
 
-  console.info = createLogInterceptor(console.info.bind(console));
+  console.info = createRedactor(console.info.bind(console));
   // eslint-disable-next-line no-console
-  console.log = createLogInterceptor(console.log.bind(console));
-  console.error = createLogInterceptor(console.error.bind(console));
-  console.warn = createLogInterceptor(console.warn.bind(console));
+  console.log = createRedactor(console.log.bind(console));
+  console.error = createRedactor(console.error.bind(console));
+  console.warn = createRedactor(console.warn.bind(console));
 }
 
 function redactSecrets(input, secrets) {
@@ -184,7 +184,10 @@ function redactSecrets(input, secrets) {
 
   const stringifiedInput = JSON.stringify(input);
   const redactedInput = complexSecrets.reduce((acc, cur) => (
-    acc.replace(JSON.stringify(cur).slice(1, -1), consts.REDACTED_PLACEHOLDER)
+    acc.replace(
+      new RegExp(escapeRegExp(JSON.stringify(cur).slice(1, -1)), "g"),
+      consts.REDACTED_PLACEHOLDER,
+    )
   ), stringifiedInput);
 
   return JSON.parse(redactedInput);
@@ -215,6 +218,10 @@ function generateRandomEnvironmentVariableName() {
 
 function generateRandomString() {
   return Math.random().toString(36).slice(2);
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
 }
 
 module.exports = {
