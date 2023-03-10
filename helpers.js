@@ -17,7 +17,6 @@ const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_librar
 const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
 const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
 const FILE_PREFIX_REGEX = /^fileb?:\/\//;
-const ENTROPY_THRESHOLDS = [19, 19, 19, 19, 19, 24, 28, 33, 38];
 
 async function readActionArguments(action, settings) {
   const methodDefinition = loadMethodFromConfiguration(action.method.name);
@@ -165,9 +164,22 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
   return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
 }
 
+function redactConsoleLogs(secrets) {
+  const createLogInterceptor = (originalFunction) => (...args) => {
+    const redactedArgs = args.map((arg) => redactSecrets(arg, secrets));
+    originalFunction(...redactedArgs);
+  };
+
+  console.info = createLogInterceptor(console.info.bind(console));
+  // eslint-disable-next-line no-console
+  console.log = createLogInterceptor(console.log.bind(console));
+  console.error = createLogInterceptor(console.error.bind(console));
+  console.warn = createLogInterceptor(console.warn.bind(console));
+}
+
 function redactSecrets(input, secrets) {
   const complexSecrets = secrets.filter((secret) => (
-    secret.length > 8 || calculateStringEntropy(secret) > ENTROPY_THRESHOLDS[secret.length]
+    secret.length > 8 || calculateStringEntropy(secret) > consts.ENTROPY_THRESHOLDS[secret.length]
   ));
 
   const stringifiedInput = JSON.stringify(input);
@@ -214,5 +226,6 @@ module.exports = {
   generateRandomEnvironmentVariableName,
   analyzePath: parsers.filePath,
   redactSecrets,
+  redactConsoleLogs,
   getVaultedParameters,
 };

@@ -9,12 +9,21 @@ function generatePluginMethod(method) {
     const methodDefinition = loadMethodFromConfiguration(action.method.name);
     const parameters = await helpers.readActionArguments(action, settings);
 
+    let secrets;
+    const shouldRedactSecrets = methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS;
+
+    if (shouldRedactSecrets) {
+      secrets = await helpers.getVaultedParameters(parameters, methodDefinition);
+      helpers.redactConsoleLogs(Object.values(secrets));
+    }
+
     const result = await method(parameters, { action, settings });
+
     if (_.isNil(result) || _.isEmpty(result)) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
-    if (methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS) {
-      const secrets = await helpers.getVaultedParameters(parameters, methodDefinition);
+
+    if (shouldRedactSecrets) {
       return helpers.redactSecrets(
         result,
         Object.values(secrets),
