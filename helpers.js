@@ -165,9 +165,13 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
 }
 
 function redactConsoleLogs(secrets) {
+  let redactionEnabled = true;
   const createRedactor = (originalFunction) => (...args) => {
+    if (!redactionEnabled) {
+      return originalFunction(...args);
+    }
     const redactedArgs = args.map((arg) => redactSecrets(arg, secrets));
-    originalFunction(...redactedArgs);
+    return originalFunction(...redactedArgs);
   };
 
   console.info = createRedactor(console.info.bind(console));
@@ -175,6 +179,10 @@ function redactConsoleLogs(secrets) {
   console.log = createRedactor(console.log.bind(console));
   console.error = createRedactor(console.error.bind(console));
   console.warn = createRedactor(console.warn.bind(console));
+
+  return () => {
+    redactionEnabled = false;
+  };
 }
 
 function redactSecrets(input, secrets) {
