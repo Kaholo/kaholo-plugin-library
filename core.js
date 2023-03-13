@@ -16,7 +16,23 @@ function generatePluginMethod(method) {
     const utils = {
       logger: shouldRedactSecrets ? helpers.createRedactedLogger(secrets) : console,
     };
-    const result = await method(parameters, { action, settings, utils });
+
+    let result;
+    try {
+      result = await method(parameters, { action, settings, utils });
+    } catch (error) {
+      if (!shouldRedactSecrets) {
+        throw error;
+      }
+
+      const redactedError = helpers.redactSecrets(error, secrets);
+      const redactedMessage = helpers.redactSecrets(error.message ?? "", secrets);
+
+      throw Object.assign(
+        new Error(redactedMessage),
+        redactedError,
+      );
+    }
 
     if (_.isNil(result) || _.isEmpty(result)) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;

@@ -189,7 +189,7 @@ function redactSecrets(input, secrets) {
   const stringifiedInput = JSON.stringify(input);
   const redactedInput = complexSecrets.reduce((acc, cur) => (
     acc.replace(
-      new RegExp(escapeRegExp(JSON.stringify(cur).slice(1, -1)), "g"),
+      new RegExp(escapeRegExp(JSON.stringify(cur).slice(1, -1)), "gm"),
       consts.REDACTED_PLACEHOLDER,
     )
   ), stringifiedInput);
@@ -225,7 +225,7 @@ function generateRandomString() {
 }
 
 function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 module.exports = {
