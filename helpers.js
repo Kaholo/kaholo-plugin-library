@@ -164,25 +164,21 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
   return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
 }
 
-function redactConsoleLogs(secrets) {
-  let redactionEnabled = true;
-  const createRedactor = (originalFunction) => (...args) => {
-    if (!redactionEnabled) {
-      return originalFunction(...args);
-    }
+function createRedactedLogger(secrets) {
+  const createRedactedMethod = (originalFunction) => (...args) => {
     const redactedArgs = args.map((arg) => redactSecrets(arg, secrets));
     return originalFunction(...redactedArgs);
   };
 
-  console.info = createRedactor(console.info.bind(console));
-  // eslint-disable-next-line no-console
-  console.log = createRedactor(console.log.bind(console));
-  console.error = createRedactor(console.error.bind(console));
-  console.warn = createRedactor(console.warn.bind(console));
+  const logger = Object.create(console, {
+    info: { value: createRedactedMethod(console.info.bind(console)) },
+    // eslint-disable-next-line no-console
+    log: { value: createRedactedMethod(console.log.bind(console)) },
+    error: { value: createRedactedMethod(console.error.bind(console)) },
+    warn: { value: createRedactedMethod(console.warn.bind(console)) },
+  });
 
-  return () => {
-    redactionEnabled = false;
-  };
+  return logger;
 }
 
 function redactSecrets(input, secrets) {
@@ -241,6 +237,6 @@ module.exports = {
   generateRandomEnvironmentVariableName,
   analyzePath: parsers.filePath,
   redactSecrets,
-  redactConsoleLogs,
+  createRedactedLogger,
   getVaultedParameters,
 };
