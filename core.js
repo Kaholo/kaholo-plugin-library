@@ -22,11 +22,7 @@ function generatePluginMethod(method) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
 
-    if (shouldRedactSecrets) {
-      return helpers.redactSecrets(result, secrets);
-    }
-
-    return result;
+    return shouldRedactSecrets ? helpers.redactSecrets(result, secrets) : result;
   };
 }
 
