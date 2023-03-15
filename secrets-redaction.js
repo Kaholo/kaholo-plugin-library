@@ -1,26 +1,19 @@
+const _ = require("lodash");
 const calculateStringEntropy = require("fast-password-entropy");
 
 const consts = require("./consts.json");
 
 const REDACTION_HANDLERS = [
-  [(value) => value instanceof Error, redactSecretsInError],
+  [_.isError, redactSecretsInError],
+  [_.isArray, redactSecretsInArray],
+  [_.isPlainObject, redactSecretsInPlainObject],
+  [_.isNull, () => null],
+  [_.isUndefined, () => undefined],
 ];
-
-function redactSecrets(input, secrets) {
-  const complexSecrets = secrets.filter((secret) => (
-    secret.length > 8 || calculateStringEntropy(secret) > consts.ENTROPY_THRESHOLDS[secret.length]
-  ));
-
-  const [, handleRedaction] = REDACTION_HANDLERS.find(
-    ([predicateFunction]) => predicateFunction(input),
-  ) ?? [null, redactSecretsWithStringify];
-
-  return handleRedaction(input, complexSecrets);
-}
 
 function createRedactedLogger(secrets) {
   const createRedactedMethod = (originalFunction) => (...args) => {
-    const redactedArgs = args.map((arg) => redactSecrets(arg, secrets));
+    const redactedArgs = args.map((arg) => redactFilteredSecrets(arg, secrets));
     return originalFunction(...redactedArgs);
   };
 
@@ -35,9 +28,25 @@ function createRedactedLogger(secrets) {
   return logger;
 }
 
+function redactSecrets(input, secrets) {
+  const complexSecrets = secrets.filter((secret) => (
+    secret.length > 8 || calculateStringEntropy(secret) > consts.ENTROPY_THRESHOLDS[secret.length]
+  ));
+
+  return redactFilteredSecrets(input, complexSecrets);
+}
+
+function redactFilteredSecrets(input, secrets) {
+  const [, handleRedaction] = (
+    REDACTION_HANDLERS.find(([predicateFunction]) => predicateFunction(input))
+  ) ?? [null, redactSecretsWithStringify];
+
+  return handleRedaction(input, secrets);
+}
+
 function redactSecretsInError(error, secrets) {
   const redactedError = redactSecretsWithStringify(error, secrets);
-  const redactedMessage = redactSecrets(error.message ?? "", secrets);
+  const redactedMessage = redactFilteredSecrets(error.message ?? "", secrets);
 
   return Object.assign(
     new Error(redactedMessage),
@@ -55,6 +64,21 @@ function redactSecretsWithStringify(input, secrets) {
   ), stringifiedInput);
 
   return JSON.parse(redactedInput);
+}
+
+function redactSecretsInArray(input, secrets) {
+  return input.map(
+    (arrayElement) => redactFilteredSecrets(arrayElement, secrets),
+  );
+}
+
+function redactSecretsInPlainObject(input, secrets) {
+  return Object.fromEntries(
+    Object.entries(input).map(([key, value]) => [
+      redactFilteredSecrets(key, secrets),
+      redactFilteredSecrets(value, secrets),
+    ]),
+  );
 }
 
 async function getVaultedParameters(params, methodDefinition) {
