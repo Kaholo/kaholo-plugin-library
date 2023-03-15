@@ -1,7 +1,6 @@
 const _ = require("lodash");
 const { open, writeFile, unlink } = require("fs/promises");
 const util = require("util");
-const calculateStringEntropy = require("fast-password-entropy");
 
 const exec = util.promisify(require("child_process").exec);
 
@@ -11,7 +10,6 @@ const {
   loadMethodFromConfiguration,
   loadAccountFromConfiguration,
 } = require("./config-loader");
-const consts = require("./consts.json");
 
 const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_library.XXXXXX";
 const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
@@ -164,46 +162,6 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
   return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
 }
 
-function createRedactedLogger(secrets) {
-  const createRedactedMethod = (originalFunction) => (...args) => {
-    const redactedArgs = args.map((arg) => redactSecrets(arg, secrets));
-    return originalFunction(...redactedArgs);
-  };
-
-  const logger = Object.create(console, {
-    info: { value: createRedactedMethod(console.info.bind(console)) },
-    // eslint-disable-next-line no-console
-    log: { value: createRedactedMethod(console.log.bind(console)) },
-    error: { value: createRedactedMethod(console.error.bind(console)) },
-    warn: { value: createRedactedMethod(console.warn.bind(console)) },
-  });
-
-  return logger;
-}
-
-function redactSecrets(input, secrets) {
-  const complexSecrets = secrets.filter((secret) => (
-    secret.length > 8 || calculateStringEntropy(secret) > consts.ENTROPY_THRESHOLDS[secret.length]
-  ));
-
-  const stringifiedInput = JSON.stringify(input);
-  const redactedInput = complexSecrets.reduce((acc, cur) => (
-    acc.replace(
-      new RegExp(escapeRegExp(JSON.stringify(cur).slice(1, -1)), "gm"),
-      consts.REDACTED_PLACEHOLDER,
-    )
-  ), stringifiedInput);
-
-  return JSON.parse(redactedInput);
-}
-
-async function getVaultedParameters(params, methodDefinition) {
-  const vaultParams = Object.entries(params).filter(([paramName]) => methodDefinition.params.some(
-    (paramDefinition) => paramDefinition.type === "vault" && paramDefinition.name === paramName,
-  ));
-  return Object.fromEntries(vaultParams);
-}
-
 function validateParamValue(
   parameterValue,
   validationType,
@@ -224,10 +182,6 @@ function generateRandomString() {
   return Math.random().toString(36).slice(2);
 }
 
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 module.exports = {
   readActionArguments,
   temporaryFileSentinel,
@@ -236,7 +190,4 @@ module.exports = {
   generateRandomTemporaryPath,
   generateRandomEnvironmentVariableName,
   analyzePath: parsers.filePath,
-  redactSecrets,
-  createRedactedLogger,
-  getVaultedParameters,
 };
