@@ -8,7 +8,7 @@ const { loadMethodFromConfiguration } = require("./config-loader");
 function generatePluginMethod(method) {
   return async (action, settings) => {
     const methodDefinition = loadMethodFromConfiguration(action.method.name);
-    const parameters = await helpers.readActionArguments(action, settings);
+    const parameters = await helpers.readActionArguments(action, settings, methodDefinition);
 
     const shouldRedactSecrets = methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS;
     const secrets = shouldRedactSecrets
@@ -33,18 +33,15 @@ function generatePluginMethod(method) {
   };
 }
 
-function generateAutocompleteFunction(autocompleteFunction) {
-  return async (query, pluginSettings, actionParams) => {
-    const [params, settings] = [actionParams, pluginSettings]
-      .map(autocomplete.mapAutocompleteFuncParamsToObject);
+function generateAutocompleteFunction(autocompleteFunction, functionName) {
+  return async (query, settings, params) => {
+    const parsedParams = autocomplete.readAutocompleteFunctionArguments(
+      params,
+      settings,
+      functionName,
+    );
 
-    _.entries(settings).forEach(([key, value]) => {
-      if (_.isNil(params[key]) || _.isEmpty(params[key])) {
-        params[key] = value;
-      }
-    });
-
-    return autocompleteFunction(query, params, { pluginSettings, actionParams });
+    return autocompleteFunction(query, parsedParams, { settings, params });
   };
 }
 
@@ -56,7 +53,7 @@ function bootstrap(pluginMethods, autocompleteFunctions) {
 
   const bootstrappedAutocompleteFuncs = _.entries(autocompleteFunctions)
     .map(([functionName, autocompleteFunction]) => ({
-      [functionName]: generateAutocompleteFunction(autocompleteFunction),
+      [functionName]: generateAutocompleteFunction(autocompleteFunction, functionName),
     }));
 
   return _.merge(...bootstrappedPluginMethods, ...bootstrappedAutocompleteFuncs);
