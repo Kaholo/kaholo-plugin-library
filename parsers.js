@@ -50,17 +50,23 @@ async function filePath(value, options = {}) {
     result.exists = true;
   } catch {
     result.exists = false;
-    if (options.throwIfDoesntExist) {
+    if (options.throwIfDoesntExist || options.readFileContent) {
       throw new Error(`Path "${value}" does not exist on agent!`);
     }
     return result;
   }
 
   const pathStat = await fs.promises.lstat(absolutePath);
-  if (pathStat.isDirectory()) {
-    result.type = "directory";
-  } else {
-    result.type = "file";
+  result.type = pathStat.isDirectory() ? "directory" : "file";
+
+  if (!options.acceptedTypes?.includes(result.type)) {
+    throw new Error(`Path type (${result.type}) is not accepted. Accepted path types: ${options.acceptedTypes.join(", ")}`);
+  }
+
+  if (options.readFileContent && result.type !== "file") {
+    throw new Error(`Path type must be a file. Provided path is of type ${result.type}`);
+  } else if (result.type === "file") {
+    result.fileContent = await fs.promises.readFile(result.absolutePath, { encoding: "utf-8" });
   }
 
   return result;
