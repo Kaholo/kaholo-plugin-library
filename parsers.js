@@ -59,7 +59,7 @@ async function filePath(value, options = {}) {
   const pathStat = await fs.promises.lstat(absolutePath);
   result.type = pathStat.isDirectory() ? "directory" : "file";
 
-  if (!options.acceptedTypes?.includes(result.type)) {
+  if (_.isArray(options.acceptedTypes) && !options.acceptedTypes.includes(result.type)) {
     throw new Error(`Path type (${result.type}) is not accepted. Accepted path types: ${options.acceptedTypes.join(", ")}`);
   }
 
