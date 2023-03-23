@@ -65,7 +65,7 @@ async function filePath(value, options = {}) {
 
   if (options.readFileContent && result.type !== "file") {
     throw new Error(`Path type must be a file. Provided path is of type ${result.type}`);
-  } else if (result.type === "file") {
+  } else if (options.readFileContent) {
     result.fileContent = await fs.promises.readFile(result.absolutePath, { encoding: "utf-8" });
   }
 
