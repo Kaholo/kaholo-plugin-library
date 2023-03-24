@@ -15,7 +15,7 @@ const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(
 const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
 const FILE_PREFIX_REGEX = /^fileb?:\/\//;
 
-function readActionArguments(action, settings) {
+async function readActionArguments(action, settings) {
   const method = loadMethodFromConfiguration(action.method.name);
   const account = loadAccountFromConfiguration();
   const paramValues = removeUndefinedAndEmpty(action.params);
@@ -25,8 +25,8 @@ function readActionArguments(action, settings) {
     throw new Error(`Could not find a method "${action.method.name}" in config.json`);
   }
 
-  method.params.forEach((paramDefinition) => {
-    paramValues[paramDefinition.name] = parseMethodParameter(
+  const paramsParsingPromises = method.params.map(async (paramDefinition) => {
+    paramValues[paramDefinition.name] = await parseMethodParameter(
       paramDefinition,
       paramValues[paramDefinition.name],
       settingsValues[paramDefinition.name],
@@ -41,9 +41,11 @@ function readActionArguments(action, settings) {
     }
   });
 
+  await Promise.all(paramsParsingPromises);
+
   if (account) {
-    account.params.forEach((paramDefinition) => {
-      paramValues[paramDefinition.name] = parseMethodParameter(
+    const accountParsingPromises = account.params.map(async (paramDefinition) => {
+      paramValues[paramDefinition.name] = await parseMethodParameter(
         paramDefinition,
         paramValues[paramDefinition.name],
         settingsValues[paramDefinition.name],
@@ -57,6 +59,8 @@ function readActionArguments(action, settings) {
         );
       }
     });
+
+    await Promise.all(accountParsingPromises);
   }
 
   return removeUndefinedAndEmpty(paramValues);
@@ -152,8 +156,9 @@ function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
     return valueToParse;
   }
 
+  const { parserOptions } = paramDefinition;
   const parserToUse = paramDefinition.parserType || paramDefinition.type;
-  return parsers.resolveParser(parserToUse)(valueToParse);
+  return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
 }
 
 function validateParamValue(
@@ -183,4 +188,5 @@ module.exports = {
   extractPathsFromCommand,
   generateRandomTemporaryPath,
   generateRandomEnvironmentVariableName,
+  analyzePath: parsers.filePath,
 };

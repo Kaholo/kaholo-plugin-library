@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const _ = require("lodash");
 
 function resolveParser(type) {
@@ -24,9 +26,50 @@ function resolveParser(type) {
       return string;
     case "keyValuePairs":
       return keyValuePairs;
+    case "filePath":
+      return filePath;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
+}
+
+async function filePath(value, options = {}) {
+  if (!_.isString(value) && !_.isNil(value)) {
+    throw new Error(`Couldn't parse provided value as file path: ${value}`);
+  }
+
+  const newValue = value || "./";
+  const absolutePath = path.resolve(newValue);
+  const result = {
+    passed: value,
+    absolutePath,
+  };
+
+  try {
+    await fs.promises.access(absolutePath, fs.constants.F_OK);
+    result.exists = true;
+  } catch {
+    result.exists = false;
+    if (options.throwIfDoesntExist || options.readFileContent) {
+      throw new Error(`Path "${value}" does not exist on agent!`);
+    }
+    return result;
+  }
+
+  const pathStat = await fs.promises.lstat(absolutePath);
+  result.type = pathStat.isDirectory() ? "directory" : "file";
+
+  if (_.isArray(options.acceptedTypes) && !options.acceptedTypes.includes(result.type)) {
+    throw new Error(`Path type (${result.type}) is not accepted. Accepted path types: ${options.acceptedTypes.join(", ")}`);
+  }
+
+  if (options.readFileContent && result.type !== "file") {
+    throw new Error(`Path type must be a file. Provided path is of type ${result.type}`);
+  } else if (options.readFileContent) {
+    result.fileContent = await fs.promises.readFile(result.absolutePath, { encoding: "utf-8" });
+  }
+
+  return result;
 }
 
 function keyValuePairs(value) {
@@ -123,4 +166,5 @@ module.exports = {
   array,
   text,
   keyValuePairs,
+  filePath,
 };
