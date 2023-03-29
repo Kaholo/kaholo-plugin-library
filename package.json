@@ -17,6 +17,7 @@
     "jest": "27.5.0"
   },
   "dependencies": {
+    "fast-password-entropy": "^1.1.1",
     "lodash": "4.17.21"
   }
 }

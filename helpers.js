@@ -1,6 +1,7 @@
 const _ = require("lodash");
 const { open, writeFile, unlink } = require("fs/promises");
 const util = require("util");
+
 const exec = util.promisify(require("child_process").exec);
 
 const parsers = require("./parsers");
@@ -16,16 +17,16 @@ const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
 const FILE_PREFIX_REGEX = /^fileb?:\/\//;
 
 async function readActionArguments(action, settings) {
-  const method = loadMethodFromConfiguration(action.method.name);
-  const account = loadAccountFromConfiguration();
+  const methodDefinition = loadMethodFromConfiguration(action.method.name);
+  const accountDefinition = loadAccountFromConfiguration();
   const paramValues = removeUndefinedAndEmpty(action.params);
   const settingsValues = removeUndefinedAndEmpty(settings);
 
-  if (_.isNil(method)) {
+  if (_.isNil(methodDefinition)) {
     throw new Error(`Could not find a method "${action.method.name}" in config.json`);
   }
 
-  const paramsParsingPromises = method.params.map(async (paramDefinition) => {
+  const paramsParsingPromises = methodDefinition.params.map(async (paramDefinition) => {
     paramValues[paramDefinition.name] = await parseMethodParameter(
       paramDefinition,
       paramValues[paramDefinition.name],
@@ -43,8 +44,8 @@ async function readActionArguments(action, settings) {
 
   await Promise.all(paramsParsingPromises);
 
-  if (account) {
-    const accountParsingPromises = account.params.map(async (paramDefinition) => {
+  if (accountDefinition) {
+    const accountParsingPromises = accountDefinition.params.map(async (paramDefinition) => {
       paramValues[paramDefinition.name] = await parseMethodParameter(
         paramDefinition,
         paramValues[paramDefinition.name],
