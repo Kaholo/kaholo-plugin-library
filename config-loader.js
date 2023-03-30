@@ -12,8 +12,9 @@ function loadAccountFromConfiguration() {
 
 function loadConfiguration() {
   try {
-    const pluginModulePath = process.argv[2] || "../../../app.js";
+    const pluginModulePath = process.argv[2] || path.join(__dirname, "../../../app.js");
     const configPath = path.resolve(path.dirname(pluginModulePath), "config.json");
+
     // eslint-disable-next-line global-require, import/no-unresolved, import/no-dynamic-require
     return require(configPath);
   } catch (exception) {
@@ -25,4 +26,5 @@ function loadConfiguration() {
 module.exports = {
   loadMethodFromConfiguration,
   loadAccountFromConfiguration,
+  loadConfiguration,
 };

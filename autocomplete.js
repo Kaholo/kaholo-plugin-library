@@ -1,5 +1,6 @@
 const _ = require("lodash");
-const parsers = require("./parsers");
+const { loadConfiguration } = require("./config-loader");
+const { readActionArguments } = require("./helpers");
 
 function mapAutocompleteFuncParamsToObject(params) {
   if (!_.isArray(params)) {
@@ -24,11 +25,49 @@ function mapAutocompleteFuncParamsToObject(params) {
 
     return {
       ...acc,
-      [name]: parsers.resolveParser(type || valueType)(value),
+      [name]: value,
     };
   }, {});
 }
 
+function findMatchingMethodDefinition(sortedParamNames) {
+  const config = loadConfiguration();
+  const accountParamNames = config.auth ? _.map(config.auth.params, "name") : [];
+  const cleanParamNames = _.difference(sortedParamNames, accountParamNames);
+
+  const matchingMethodDefinition = config.methods.find((method) => (
+    _.isEqual(
+      cleanParamNames,
+      _.sortBy(_.map(method.params, "name")),
+    )
+  ));
+
+  return matchingMethodDefinition;
+}
+
+function readAutocompleteFunctionArguments(params, settings, autocompleteFunctionName) {
+  const paramNames = _.sortBy(_.map(params, "name"));
+  const methodDefinition = findMatchingMethodDefinition(paramNames);
+
+  const autocompleteParamIndex = methodDefinition.params.findIndex((param) => (
+    param.type === "autocomplete" && param.functionName === autocompleteFunctionName
+  ));
+  methodDefinition.params.forEach((param, paramIndex) => {
+    if (paramIndex >= autocompleteParamIndex && param.required) {
+      methodDefinition.params[paramIndex].required = false;
+    }
+  });
+
+  return readActionArguments(
+    {
+      params: mapAutocompleteFuncParamsToObject(params),
+    },
+    mapAutocompleteFuncParamsToObject(settings),
+    methodDefinition,
+  );
+}
+
 module.exports = {
   mapAutocompleteFuncParamsToObject,
+  readAutocompleteFunctionArguments,
 };

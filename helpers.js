@@ -16,8 +16,11 @@ const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(
 const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
 const FILE_PREFIX_REGEX = /^fileb?:\/\//;
 
-async function readActionArguments(action, settings) {
-  const methodDefinition = loadMethodFromConfiguration(action.method.name);
+async function readActionArguments(
+  action,
+  settings,
+  methodDefinition = loadMethodFromConfiguration(action.method.name),
+) {
   const accountDefinition = loadAccountFromConfiguration();
   const paramValues = removeUndefinedAndEmpty(action.params);
   const settingsValues = removeUndefinedAndEmpty(settings);
