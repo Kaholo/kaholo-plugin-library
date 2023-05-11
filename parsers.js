@@ -28,6 +28,10 @@ function resolveParser(type) {
       return keyValuePairs;
     case "filePath":
       return filePath;
+    case "tag":
+      return tag;
+    case "tags":
+      return tags;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
@@ -156,6 +160,58 @@ function array(value) {
   throw new Error("Unsupported array format");
 }
 
+const isTagObject = (o) => _.keys(o).length === 2 && _.has(o, "Key") && _.has(o, "Value");
+
+function tag(value) {
+  if (_.isNil(value)) {
+    throw new Error("Cannot null or undefined tag!");
+  }
+
+  if (_.isObject(value) && isTagObject(value)) {
+    return value;
+  }
+
+  if (_.isString(value)) {
+    const [Key, Value] = value.split(/=(.+)/);
+    if (_.isNil(Key) || _.isNil(Value) || Key.trim() === "" || Value.trim() === "") {
+      throw new Error(`Incorrectly formatted tag string: ${value}`);
+    }
+
+    return { Key: Key.trim(), Value: Value.trim() };
+  }
+  throw new Error("Unsupported tags format!");
+}
+
+function tagsString(value) {
+  const parsedArray = array(value);
+  return parsedArray.map(tag);
+}
+
+function tags(value) {
+  if (_.isNil(value)) {
+    return [];
+  }
+  if (_.isArray(value)) {
+    if (_.every(value, _.isObject)) {
+      return value.map(tag);
+    }
+    if (_.every(value, _.isString)) {
+      return _.flatten(value.map(tagsString));
+    }
+    throw new Error("Incorrect AWS Tags format");
+  }
+  if (_.isString(value)) {
+    return tagsString(value);
+  }
+  if (_.isObject(value)) {
+    if (isTagObject(value)) {
+      return [value];
+    }
+    return _.entries(value).map(([Key, Value]) => ({ Key: Key.trim(), Value: Value.trim() }));
+  }
+  throw new Error("Unsupported tags format!");
+}
+
 module.exports = {
   resolveParser,
   string,
@@ -167,4 +223,5 @@ module.exports = {
   text,
   keyValuePairs,
   filePath,
+  tags,
 };
