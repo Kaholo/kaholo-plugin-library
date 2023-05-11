@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const _ = require("lodash");
 
 function resolveParser(type) {
@@ -24,9 +26,54 @@ function resolveParser(type) {
       return string;
     case "keyValuePairs":
       return keyValuePairs;
+    case "filePath":
+      return filePath;
+    case "tag":
+      return tag;
+    case "tags":
+      return tags;
     default:
       throw new Error(`Can't resolve parser of type "${type}"`);
   }
+}
+
+async function filePath(value, options = {}) {
+  if (!_.isString(value) && !_.isNil(value)) {
+    throw new Error(`Couldn't parse provided value as file path: ${value}`);
+  }
+
+  const newValue = value || "./";
+  const absolutePath = path.resolve(newValue);
+  const result = {
+    passed: value,
+    absolutePath,
+  };
+
+  try {
+    await fs.promises.access(absolutePath, fs.constants.F_OK);
+    result.exists = true;
+  } catch {
+    result.exists = false;
+    if (options.throwIfDoesntExist || options.readFileContent) {
+      throw new Error(`Path "${value}" does not exist on agent!`);
+    }
+    return result;
+  }
+
+  const pathStat = await fs.promises.lstat(absolutePath);
+  result.type = pathStat.isDirectory() ? "directory" : "file";
+
+  if (_.isArray(options.acceptedTypes) && !options.acceptedTypes.includes(result.type)) {
+    throw new Error(`Path type (${result.type}) is not accepted. Accepted path types: ${options.acceptedTypes.join(", ")}`);
+  }
+
+  if (options.readFileContent && result.type !== "file") {
+    throw new Error(`Path type must be a file. Provided path is of type ${result.type}`);
+  } else if (options.readFileContent) {
+    result.fileContent = await fs.promises.readFile(result.absolutePath, { encoding: "utf-8" });
+  }
+
+  return result;
 }
 
 function keyValuePairs(value) {
@@ -113,6 +160,60 @@ function array(value) {
   throw new Error("Unsupported array format");
 }
 
+function tag(value) {
+  if (_.isNil(value)) {
+    throw new Error("Cannot null or undefined tag!");
+  }
+
+  if (_.isObject(value) && isTagObject(value)) {
+    return value;
+  }
+
+  if (_.isString(value)) {
+    const [Key, Value] = value.split(/=(.+)/);
+    if (_.isNil(Key) || _.isNil(Value) || Key.trim() === "" || Value.trim() === "") {
+      throw new Error(`Incorrectly formatted tag string: ${value}`);
+    }
+
+    return { Key: Key.trim(), Value: Value.trim() };
+  }
+  throw new Error("Unsupported tags format!");
+}
+
+function tags(value) {
+  if (_.isNil(value)) {
+    return [];
+  }
+  if (_.isArray(value)) {
+    if (_.every(value, _.isObject)) {
+      return value.map(tag);
+    }
+    if (_.every(value, _.isString)) {
+      return _.flatten(value.map(tagsString));
+    }
+    throw new Error("Incorrect AWS Tags format");
+  }
+  if (_.isString(value)) {
+    return tagsString(value);
+  }
+  if (_.isObject(value)) {
+    if (isTagObject(value)) {
+      return [value];
+    }
+    return _.entries(value).map(([Key, Value]) => ({ Key: Key.trim(), Value: Value.trim() }));
+  }
+  throw new Error("Unsupported tags format!");
+}
+
+function isTagObject(o) {
+  return _.keys(o).length === 2 && _.has(o, "Key") && _.has(o, "Value");
+}
+
+function tagsString(value) {
+  const parsedArray = array(value);
+  return parsedArray.map(tag);
+}
+
 module.exports = {
   resolveParser,
   string,
@@ -123,4 +224,6 @@ module.exports = {
   array,
   text,
   keyValuePairs,
+  filePath,
+  tags,
 };
