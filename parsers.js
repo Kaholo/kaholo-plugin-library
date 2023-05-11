@@ -160,8 +160,6 @@ function array(value) {
   throw new Error("Unsupported array format");
 }
 
-const isTagObject = (o) => _.keys(o).length === 2 && _.has(o, "Key") && _.has(o, "Value");
-
 function tag(value) {
   if (_.isNil(value)) {
     throw new Error("Cannot null or undefined tag!");
@@ -180,11 +178,6 @@ function tag(value) {
     return { Key: Key.trim(), Value: Value.trim() };
   }
   throw new Error("Unsupported tags format!");
-}
-
-function tagsString(value) {
-  const parsedArray = array(value);
-  return parsedArray.map(tag);
 }
 
 function tags(value) {
@@ -210,6 +203,15 @@ function tags(value) {
     return _.entries(value).map(([Key, Value]) => ({ Key: Key.trim(), Value: Value.trim() }));
   }
   throw new Error("Unsupported tags format!");
+}
+
+function isTagObject(o) {
+  return _.keys(o).length === 2 && _.has(o, "Key") && _.has(o, "Value");
+}
+
+function tagsString(value) {
+  const parsedArray = array(value);
+  return parsedArray.map(tag);
 }
 
 module.exports = {
