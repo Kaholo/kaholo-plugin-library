@@ -35,6 +35,14 @@ async function readActionArguments(
       settingDefinition,
       settingsValues[settingDefinition.name],
     );
+
+    const { validationType } = settingDefinition;
+    if (validationType) {
+      validateParamValue(
+        settingsValues[settingDefinition.name],
+        validationType,
+      );
+    }
   });
   await Promise.all(settingsParsingPromises);
 
