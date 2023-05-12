@@ -32,8 +32,14 @@ function mapAutocompleteFuncParamsToObject(params) {
 
 function findMatchingMethodDefinition(sortedParamNames) {
   const config = loadConfiguration();
-  const accountParamNames = config.auth ? _.map(config.auth.params, "name") : [];
-  const cleanParamNames = _.difference(sortedParamNames, accountParamNames);
+  const accountParamNames = new Set(config.auth ? _.map(config.auth.params, "name") : []);
+  const cleanParamNames = sortedParamNames.filter((paramName) => {
+    if (accountParamNames.has(paramName)) {
+      accountParamNames.delete(paramName);
+      return false;
+    }
+    return true;
+  });
 
   const matchingMethodDefinition = config.methods.find((method) => (
     _.isEqual(
@@ -48,6 +54,13 @@ function findMatchingMethodDefinition(sortedParamNames) {
 function readAutocompleteFunctionArguments(params, settings, autocompleteFunctionName) {
   const paramNames = _.sortBy(_.map(params, "name"));
   const methodDefinition = findMatchingMethodDefinition(paramNames);
+
+  if (!methodDefinition) {
+    return {
+      ...mapAutocompleteFuncParamsToObject(settings),
+      ...mapAutocompleteFuncParamsToObject(params),
+    };
+  }
 
   const autocompleteParamIndex = methodDefinition.params.findIndex((param) => (
     param.type === "autocomplete" && param.functionName === autocompleteFunctionName
