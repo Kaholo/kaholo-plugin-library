@@ -22,6 +22,7 @@ async function readActionArguments(
   methodDefinition = loadMethodFromConfiguration(action.method.name),
 ) {
   const accountDefinition = loadAccountFromConfiguration();
+
   const paramValues = removeUndefinedAndEmpty(action.params);
   const settingsValues = removeUndefinedAndEmpty(settings);
 
@@ -29,8 +30,16 @@ async function readActionArguments(
     throw new Error(`Could not find a method "${action.method.name}" in config.json`);
   }
 
+  const settingsParsingPromises = methodDefinition.settings.map(async (settingDefinition) => {
+    settingsValues[settingDefinition.name] = await parseParameter(
+      settingDefinition,
+      settingsValues[settingDefinition.name],
+    );
+  });
+  await Promise.all(settingsParsingPromises);
+
   const paramsParsingPromises = methodDefinition.params.map(async (paramDefinition) => {
-    paramValues[paramDefinition.name] = await parseMethodParameter(
+    paramValues[paramDefinition.name] = await parseParameter(
       paramDefinition,
       paramValues[paramDefinition.name],
       settingsValues[paramDefinition.name],
@@ -44,12 +53,11 @@ async function readActionArguments(
       );
     }
   });
-
   await Promise.all(paramsParsingPromises);
 
   if (accountDefinition) {
     const accountParsingPromises = accountDefinition.params.map(async (paramDefinition) => {
-      paramValues[paramDefinition.name] = await parseMethodParameter(
+      paramValues[paramDefinition.name] = await parseParameter(
         paramDefinition,
         paramValues[paramDefinition.name],
         settingsValues[paramDefinition.name],
@@ -63,11 +71,13 @@ async function readActionArguments(
         );
       }
     });
-
     await Promise.all(accountParsingPromises);
   }
 
-  return removeUndefinedAndEmpty(paramValues);
+  return removeUndefinedAndEmpty({
+    ...settingsValues,
+    ...paramValues,
+  });
 }
 
 async function temporaryFileSentinel(fileDataArray, functionToWatch) {
@@ -151,7 +161,7 @@ function removeUndefinedAndEmpty(object) {
   return _.omitBy(object, (value) => value === "" || _.isNil(value) || (_.isObjectLike(value) && _.isEmpty(value)));
 }
 
-function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
+function parseParameter(paramDefinition, paramValue, settingsValue) {
   const valueToParse = paramValue ?? settingsValue ?? paramDefinition.default;
   if (_.isNil(valueToParse)) {
     if (paramDefinition.required) {
