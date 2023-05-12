@@ -9,6 +9,7 @@ const validators = require("./validators");
 const {
   loadMethodFromConfiguration,
   loadAccountFromConfiguration,
+  loadConfiguration,
 } = require("./config-loader");
 
 const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_library.XXXXXX";
@@ -30,7 +31,8 @@ async function readActionArguments(
     throw new Error(`Could not find a method "${action.method.name}" in config.json`);
   }
 
-  const settingsParsingPromises = methodDefinition.settings.map(async (settingDefinition) => {
+  const settingsParamsDefinition = loadConfiguration()?.settings ?? [];
+  const settingsParsingPromises = settingsParamsDefinition.map(async (settingDefinition) => {
     settingsValues[settingDefinition.name] = await parseParameter(
       settingDefinition,
       settingsValues[settingDefinition.name],
