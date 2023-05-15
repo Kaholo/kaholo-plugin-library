@@ -9,7 +9,6 @@ const validators = require("./validators");
 const {
   loadMethodFromConfiguration,
   loadAccountFromConfiguration,
-  loadConfiguration,
 } = require("./config-loader");
 
 const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_library.XXXXXX";
@@ -23,7 +22,6 @@ async function readActionArguments(
   methodDefinition = loadMethodFromConfiguration(action.method.name),
 ) {
   const accountDefinition = loadAccountFromConfiguration();
-
   const paramValues = removeUndefinedAndEmpty(action.params);
   const settingsValues = removeUndefinedAndEmpty(settings);
 
@@ -31,25 +29,8 @@ async function readActionArguments(
     throw new Error(`Could not find a method "${action.method.name}" in config.json`);
   }
 
-  const settingsParamsDefinition = loadConfiguration()?.settings ?? [];
-  const settingsParsingPromises = settingsParamsDefinition.map(async (settingDefinition) => {
-    settingsValues[settingDefinition.name] = await parseParameter(
-      settingDefinition,
-      settingsValues[settingDefinition.name],
-    );
-
-    const { validationType } = settingDefinition;
-    if (validationType) {
-      validateParamValue(
-        settingsValues[settingDefinition.name],
-        validationType,
-      );
-    }
-  });
-  await Promise.all(settingsParsingPromises);
-
   const paramsParsingPromises = methodDefinition.params.map(async (paramDefinition) => {
-    paramValues[paramDefinition.name] = await parseParameter(
+    paramValues[paramDefinition.name] = await parseMethodParameter(
       paramDefinition,
       paramValues[paramDefinition.name],
       settingsValues[paramDefinition.name],
@@ -63,11 +44,12 @@ async function readActionArguments(
       );
     }
   });
+
   await Promise.all(paramsParsingPromises);
 
   if (accountDefinition) {
     const accountParsingPromises = accountDefinition.params.map(async (paramDefinition) => {
-      paramValues[paramDefinition.name] = await parseParameter(
+      paramValues[paramDefinition.name] = await parseMethodParameter(
         paramDefinition,
         paramValues[paramDefinition.name],
         settingsValues[paramDefinition.name],
@@ -81,13 +63,11 @@ async function readActionArguments(
         );
       }
     });
+
     await Promise.all(accountParsingPromises);
   }
 
-  return removeUndefinedAndEmpty({
-    ...settingsValues,
-    ...paramValues,
-  });
+  return removeUndefinedAndEmpty(paramValues);
 }
 
 async function temporaryFileSentinel(fileDataArray, functionToWatch) {
@@ -171,7 +151,7 @@ function removeUndefinedAndEmpty(object) {
   return _.omitBy(object, (value) => value === "" || _.isNil(value) || (_.isObjectLike(value) && _.isEmpty(value)));
 }
 
-function parseParameter(paramDefinition, paramValue, settingsValue) {
+function parseMethodParameter(paramDefinition, paramValue, settingsValue) {
   const valueToParse = paramValue ?? settingsValue ?? paramDefinition.default;
   if (_.isNil(valueToParse)) {
     if (paramDefinition.required) {
