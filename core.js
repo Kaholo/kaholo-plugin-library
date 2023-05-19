@@ -1,19 +1,31 @@
 const _ = require("lodash");
+
 const consts = require("./consts.json");
 const helpers = require("./helpers");
 const redaction = require("./secrets-redaction");
 const autocomplete = require("./autocomplete");
-const { loadMethodFromConfiguration } = require("./config-loader");
+const {
+  loadMethodFromConfiguration,
+  loadConfiguration,
+} = require("./config-loader");
 
 function generatePluginMethod(method) {
   return async (action, settings) => {
     const methodDefinition = loadMethodFromConfiguration(action.method.name);
+    const pluginDefinition = loadConfiguration();
     const parameters = await helpers.readActionArguments(action, settings, methodDefinition);
 
     const allowEmptyResult = methodDefinition.allowEmptyResult ?? false;
     const shouldRedactSecrets = methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS;
-    const secrets = shouldRedactSecrets
-      && Object.values(await redaction.getVaultedParameters(parameters, methodDefinition));
+    const secrets = [];
+    if (shouldRedactSecrets) {
+      const paramsDefinition = [
+        ...(methodDefinition.params ?? []),
+        ...(pluginDefinition.auth?.params ?? []),
+      ];
+      const secretsObject = redaction.filterVaultedParameters(parameters, paramsDefinition);
+      secrets.push(Object.values(secretsObject));
+    }
 
     const utils = {
       logger: shouldRedactSecrets ? redaction.createRedactedLogger(secrets) : console,
