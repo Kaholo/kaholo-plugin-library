@@ -10,6 +10,7 @@ function generatePluginMethod(method) {
     const methodDefinition = loadMethodFromConfiguration(action.method.name);
     const parameters = await helpers.readActionArguments(action, settings, methodDefinition);
 
+    const allowEmptyResult = methodDefinition.allowEmptyResult ?? false;
     const shouldRedactSecrets = methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS;
     const secrets = shouldRedactSecrets
       && Object.values(await redaction.getVaultedParameters(parameters, methodDefinition));
@@ -25,7 +26,7 @@ function generatePluginMethod(method) {
       throw shouldRedactSecrets ? redaction.redactSecrets(error, secrets) : error;
     }
 
-    if (_.isNil(result) || _.isEmpty(result)) {
+    if (!allowEmptyResult && (_.isNil(result) || _.isEmpty(result))) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
 
