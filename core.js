@@ -24,7 +24,7 @@ function generatePluginMethod(method) {
         ...(pluginDefinition.auth?.params ?? []),
       ];
       const secretsObject = redaction.filterVaultedParameters(parameters, paramsDefinition);
-      secrets.push(Object.values(secretsObject));
+      secrets.push(...Object.values(secretsObject));
     }
 
     const utils = {
