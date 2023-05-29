@@ -81,8 +81,8 @@ function redactSecretsInPlainObject(input, secrets) {
   );
 }
 
-async function getVaultedParameters(params, methodDefinition) {
-  const vaultParams = Object.entries(params).filter(([paramName]) => methodDefinition.params.some(
+function filterVaultedParameters(params, paramsDefinition) {
+  const vaultParams = Object.entries(params).filter(([paramName]) => paramsDefinition.some(
     (paramDefinition) => paramDefinition.type === "vault" && paramDefinition.name === paramName,
   ));
   return Object.fromEntries(vaultParams);
@@ -93,7 +93,7 @@ function escapeRegExp(string) {
 }
 
 module.exports = {
-  getVaultedParameters,
+  filterVaultedParameters,
   redactSecrets,
   createRedactedLogger,
 };
