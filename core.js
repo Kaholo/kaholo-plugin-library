@@ -13,7 +13,10 @@ function generatePluginMethod(method) {
   return async (action, settings) => {
     const methodDefinition = loadMethodFromConfiguration(action.method.name);
     const pluginDefinition = loadConfiguration();
-    const parameters = await helpers.readActionArguments(action, settings, methodDefinition);
+    const {
+      params,
+      settings: parsedSettings,
+    } = await helpers.readActionArguments(action, settings, methodDefinition);
 
     const allowEmptyResult = methodDefinition.allowEmptyResult ?? false;
     const shouldRedactSecrets = methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS;
@@ -23,7 +26,7 @@ function generatePluginMethod(method) {
         ...(methodDefinition.params ?? []),
         ...(pluginDefinition.auth?.params ?? []),
       ];
-      const secretsObject = redaction.filterVaultedParameters(parameters, paramsDefinition);
+      const secretsObject = redaction.filterVaultedParameters(params, paramsDefinition);
       secrets.push(...Object.values(secretsObject));
     }
 
@@ -33,7 +36,12 @@ function generatePluginMethod(method) {
 
     let result;
     try {
-      result = await method(parameters, { action, settings, utils });
+      result = await method(params, {
+        action,
+        settings,
+        utils,
+        parsedSettings,
+      });
     } catch (error) {
       throw shouldRedactSecrets ? redaction.redactSecrets(error, secrets) : error;
     }

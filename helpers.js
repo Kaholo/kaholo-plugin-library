@@ -31,7 +31,7 @@ async function readActionArguments(
     throw new Error(`Could not find a method "${action.method.name}" in config.json`);
   }
 
-  const settingsParamsDefinition = loadConfiguration()?.settings ?? [];
+  const settingsParamsDefinition = loadConfiguration().settings ?? [];
   const settingsParsingPromises = settingsParamsDefinition.map(async (settingDefinition) => {
     settingsValues[settingDefinition.name] = await parseParameter(
       settingDefinition,
@@ -52,7 +52,6 @@ async function readActionArguments(
     paramValues[paramDefinition.name] = await parseParameter(
       paramDefinition,
       paramValues[paramDefinition.name],
-      settingsValues[paramDefinition.name],
     );
 
     const { validationType } = paramDefinition;
@@ -70,7 +69,6 @@ async function readActionArguments(
       paramValues[paramDefinition.name] = await parseParameter(
         paramDefinition,
         paramValues[paramDefinition.name],
-        settingsValues[paramDefinition.name],
       );
 
       const { validationType } = paramDefinition;
@@ -84,10 +82,10 @@ async function readActionArguments(
     await Promise.all(accountParsingPromises);
   }
 
-  return removeUndefinedAndEmpty({
-    ...settingsValues,
-    ...paramValues,
-  });
+  return {
+    params: removeUndefinedAndEmpty(paramValues),
+    settings: removeUndefinedAndEmpty(settingsValues),
+  };
 }
 
 async function temporaryFileSentinel(fileDataArray, functionToWatch) {
@@ -171,18 +169,17 @@ function removeUndefinedAndEmpty(object) {
   return _.omitBy(object, (value) => value === "" || _.isNil(value) || (_.isObjectLike(value) && _.isEmpty(value)));
 }
 
-function parseParameter(paramDefinition, paramValue, settingsValue) {
-  const valueToParse = paramValue ?? settingsValue ?? paramDefinition.default;
-  if (_.isNil(valueToParse)) {
+function parseParameter(paramDefinition, paramValue) {
+  if (_.isNil(paramValue)) {
     if (paramDefinition.required) {
       throw Error(`Missing required "${paramDefinition.name}" value`);
     }
-    return valueToParse;
+    return paramValue;
   }
 
   const { parserOptions } = paramDefinition;
   const parserToUse = paramDefinition.parserType || paramDefinition.type;
-  return parsers.resolveParser(parserToUse)(valueToParse, parserOptions);
+  return parsers.resolveParser(parserToUse)(paramValue, parserOptions);
 }
 
 function validateParamValue(
