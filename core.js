@@ -1,18 +1,34 @@
 const _ = require("lodash");
+
 const consts = require("./consts.json");
 const helpers = require("./helpers");
 const redaction = require("./secrets-redaction");
 const autocomplete = require("./autocomplete");
-const { loadMethodFromConfiguration } = require("./config-loader");
+const {
+  loadMethodFromConfiguration,
+  loadConfiguration,
+} = require("./config-loader");
 
 function generatePluginMethod(method) {
   return async (action, settings) => {
     const methodDefinition = loadMethodFromConfiguration(action.method.name);
-    const parameters = await helpers.readActionArguments(action, settings, methodDefinition);
+    const pluginDefinition = loadConfiguration();
+    const {
+      params,
+      settings: parsedSettings,
+    } = await helpers.readActionArguments(action, settings, methodDefinition);
 
+    const allowEmptyResult = methodDefinition.allowEmptyResult ?? false;
     const shouldRedactSecrets = methodDefinition.redactSecrets ?? consts.DEFAULT_REDACT_SECRETS;
-    const secrets = shouldRedactSecrets
-      && Object.values(await redaction.getVaultedParameters(parameters, methodDefinition));
+    const secrets = [];
+    if (shouldRedactSecrets) {
+      const paramsDefinition = [
+        ...(methodDefinition.params ?? []),
+        ...(pluginDefinition.auth?.params ?? []),
+      ];
+      const secretsObject = redaction.filterVaultedParameters(params, paramsDefinition);
+      secrets.push(...Object.values(secretsObject));
+    }
 
     const utils = {
       logger: shouldRedactSecrets ? redaction.createRedactedLogger(secrets) : console,
@@ -20,12 +36,17 @@ function generatePluginMethod(method) {
 
     let result;
     try {
-      result = await method(parameters, { action, settings, utils });
+      result = await method(params, {
+        action,
+        settings,
+        utils,
+        parsedSettings,
+      });
     } catch (error) {
       throw shouldRedactSecrets ? redaction.redactSecrets(error, secrets) : error;
     }
 
-    if (_.isNil(result) || _.isEmpty(result)) {
+    if (!allowEmptyResult && (_.isNil(result) || _.isEmpty(result))) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
 
