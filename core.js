@@ -46,7 +46,7 @@ function generatePluginMethod(method) {
       throw shouldRedactSecrets ? redaction.redactSecrets(error, secrets) : error;
     }
 
-    if (!allowEmptyResult && (_.isNil(result) || _.isEmpty(result))) {
+    if (!allowEmptyResult && helpers.isResultEmpty(result)) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
 
