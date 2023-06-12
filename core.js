@@ -46,7 +46,7 @@ function generatePluginMethod(method) {
       throw shouldRedactSecrets ? redaction.redactSecrets(error, secrets) : error;
     }
 
-    if (!allowEmptyResult && (_.isNil(result) || _.isEmpty(result))) {
+    if (!allowEmptyResult && helpers.isResultEmpty(result)) {
       return consts.OPERATION_FINISHED_SUCCESSFULLY_MESSAGE;
     }
 
@@ -56,13 +56,16 @@ function generatePluginMethod(method) {
 
 function generateAutocompleteFunction(autocompleteFunction, functionName) {
   return async (query, settings, params) => {
-    const parsedParams = await autocomplete.readAutocompleteFunctionArguments(
+    const {
+      params: parsedParams,
+      settings: parsedSettings,
+    } = await autocomplete.readAutocompleteFunctionArguments(
       params,
       settings,
       functionName,
     );
 
-    return autocompleteFunction(query, parsedParams, { settings, params });
+    return autocompleteFunction(query, parsedParams, { settings, params, parsedSettings });
   };
 }
 
