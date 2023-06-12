@@ -56,13 +56,16 @@ function generatePluginMethod(method) {
 
 function generateAutocompleteFunction(autocompleteFunction, functionName) {
   return async (query, settings, params) => {
-    const parsedParams = await autocomplete.readAutocompleteFunctionArguments(
+    const {
+      params: parsedParams,
+      settings: parsedSettings,
+    } = await autocomplete.readAutocompleteFunctionArguments(
       params,
       settings,
       functionName,
     );
 
-    return autocompleteFunction(query, parsedParams, { settings, params });
+    return autocompleteFunction(query, parsedParams, { settings, params, parsedSettings });
   };
 }
 
