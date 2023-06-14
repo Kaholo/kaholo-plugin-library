@@ -205,8 +205,6 @@ function generateRandomString() {
 function isResultEmpty(result) {
   return (
     _.isNil(result) // null or undefined
-    || (_.isArray(result) && result.length === 0) // empty arrays
-    || (_.isPlainObject(result) && _.keys(result).length === 0) // empty objects
     || (_.isString(result) && result.length === 0) // empty strings
   );
 }
