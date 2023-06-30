@@ -51,7 +51,7 @@ function findMatchingMethodDefinition(sortedParamNames) {
   return matchingMethodDefinition;
 }
 
-function readAutocompleteFunctionArguments(params, settings, autocompleteFunctionName) {
+function readAutocompleteFunctionArguments(params, settings) {
   const paramNames = _.sortBy(_.map(params, "name"));
   const methodDefinition = findMatchingMethodDefinition(paramNames);
 
@@ -62,14 +62,10 @@ function readAutocompleteFunctionArguments(params, settings, autocompleteFunctio
     };
   }
 
-  const autocompleteParamIndex = methodDefinition.params.findIndex((param) => (
-    param.type === "autocomplete" && param.functionName === autocompleteFunctionName
-  ));
-  methodDefinition.params.forEach((param, paramIndex) => {
-    if (paramIndex >= autocompleteParamIndex && param.required) {
-      methodDefinition.params[paramIndex].required = false;
-    }
-  });
+  methodDefinition.params = methodDefinition.params.map((param) => ({
+    ...param,
+    required: false,
+  }));
 
   return readActionArguments(
     {
