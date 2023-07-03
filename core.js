@@ -54,7 +54,7 @@ function generatePluginMethod(method) {
   };
 }
 
-function generateAutocompleteFunction(autocompleteFunction, functionName) {
+function generateAutocompleteFunction(autocompleteFunction) {
   return async (query, settings, params) => {
     const {
       params: parsedParams,
@@ -62,7 +62,6 @@ function generateAutocompleteFunction(autocompleteFunction, functionName) {
     } = await autocomplete.readAutocompleteFunctionArguments(
       params,
       settings,
-      functionName,
     );
 
     return autocompleteFunction(query, parsedParams, { settings, params, parsedSettings });
@@ -77,7 +76,7 @@ function bootstrap(pluginMethods, autocompleteFunctions) {
 
   const bootstrappedAutocompleteFuncs = _.entries(autocompleteFunctions)
     .map(([functionName, autocompleteFunction]) => ({
-      [functionName]: generateAutocompleteFunction(autocompleteFunction, functionName),
+      [functionName]: generateAutocompleteFunction(autocompleteFunction),
     }));
 
   return _.merge(...bootstrappedPluginMethods, ...bootstrappedAutocompleteFuncs);
