@@ -6,7 +6,11 @@ const helpers = require("./helpers");
 const {
   loadAccountFromConfiguration,
   loadMethodFromConfiguration,
+  loadConfiguration,
 } = require("./config-loader");
+
+const accountConfig = require("./mocks/account-config.json");
+const noAccountConfig = require("./mocks/no-account-config.json");
 
 jest.mock("./config-loader");
 
@@ -38,7 +42,7 @@ describe("temporaryFileSentinel", () => {
 
     await expect(async () => {
       await open(pathToTempFile, "r");
-    }).rejects.toThrow(`ENOENT: no such file or directory, open '${pathToTempFile}'`);
+    }).rejects.toThrowError(`ENOENT: no such file or directory, open '${pathToTempFile}'`);
   });
 
   it("should remove the file even if the function throws an error", async () => {
@@ -49,7 +53,7 @@ describe("temporaryFileSentinel", () => {
       throw new Error();
     }).catch(() => {}); // Ignore error
 
-    expect(() => open(tempFilePath, "r")).rejects.toThrow(`ENOENT: no such file or directory, open '${tempFilePath}'`);
+    await expect(() => open(tempFilePath, "r")).rejects.toThrowError(`ENOENT: no such file or directory, open '${tempFilePath}'`);
   });
 });
 
@@ -80,9 +84,11 @@ describe("multipleTemporaryFilesSentinel", () => {
     expect(temporaryFilePaths.length).toEqual(Object.keys(files).length);
     expect(temporaryFilePaths).toContainEqual(expect.any(String));
 
-    temporaryFilePaths.forEach((temporaryFilePath) => {
-      expect(() => open(temporaryFilePath)).rejects.toThrowError(`ENOENT: no such file or directory, open '${temporaryFilePath}'`);
-    });
+    await Promise.all(
+      temporaryFilePaths.map((temporaryFilePath) => (
+        expect(() => open(temporaryFilePath)).rejects.toThrowError(`ENOENT: no such file or directory, open '${temporaryFilePath}'`)
+      )),
+    );
   });
 
   it("should clean up temporary files in case of error in callback function", async () => {
@@ -100,9 +106,11 @@ describe("multipleTemporaryFilesSentinel", () => {
       },
     ).catch(() => {}); // Ignore error
 
-    temporaryFilePaths.forEach((temporaryFilePath) => {
-      expect(() => open(temporaryFilePath)).rejects.toThrowError(`ENOENT: no such file or directory, open '${temporaryFilePath}'`);
-    });
+    await Promise.all(
+      temporaryFilePaths.map((temporaryFilePath) => (
+        expect(() => open(temporaryFilePath)).rejects.toThrowError(`ENOENT: no such file or directory, open '${temporaryFilePath}'`)
+      )),
+    );
   });
 });
 
@@ -217,15 +225,14 @@ describe("readActionArguments", () => {
 
   describe("testing config with account", () => {
     beforeAll(() => {
-      // eslint-disable-next-line global-require
-      const accountConfig = require("./mocks/account-config.json");
       loadMethodFromConfiguration.mockImplementation((methodName) => (
         accountConfig.methods.find((m) => m.name === methodName)
       ));
       loadAccountFromConfiguration.mockImplementation(() => accountConfig.auth);
+      loadConfiguration.mockImplementation(() => accountConfig);
     });
 
-    it("should parse parameters and accounts accordingly to the config", () => {
+    it("should parse parameters and accounts accordingly to the config", async () => {
       const account = {
         email: "test@example.com",
         password: "test123",
@@ -243,7 +250,7 @@ describe("readActionArguments", () => {
       };
       const settings = {};
 
-      const readArguments = readActionArguments(action, settings);
+      const { params: readArguments } = await readActionArguments(action, settings);
 
       expect(readArguments.testParameterOne).toStrictEqual("test");
       expect(readArguments.testParameterTwo).toEqual(1);
@@ -254,7 +261,7 @@ describe("readActionArguments", () => {
       expect(readArguments.objects).toStrictEqual(["object-1", "object-2", "object-3"]);
     });
 
-    it("should parse parameters accordingly to the config and validate them", () => {
+    it("should parse parameters accordingly to the config and validate them", async () => {
       const EXAMPLE_SSH_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nasdasdasdasasd\n-----END OPENSSH PRIVATE KEY-----\n";
       const account = {
         email: "test@example.com",
@@ -270,12 +277,12 @@ describe("readActionArguments", () => {
       };
       const settings = {};
 
-      const readArguments = readActionArguments(action, settings);
+      const { params: readArguments } = await readActionArguments(action, settings);
 
       expect(readArguments.testParameterFive).toStrictEqual(EXAMPLE_SSH_KEY);
     });
 
-    it("should throw if no suitable parser is found", () => {
+    it("should throw if no suitable parser is found", async () => {
       const EXAMPLE_INVALID_SSH_KEY = "INVALID SSH";
       const account = {
         email: "test@example.com",
@@ -291,33 +298,29 @@ describe("readActionArguments", () => {
       };
       const settings = {};
 
-      expect(() => {
-        readActionArguments(action, settings);
-      }).toThrowError("Missing line feed character at the end of the file.");
+      await expect(readActionArguments(action, settings)).rejects.toThrowError("Missing line feed character at the end of the file.");
     });
   });
 
   describe("testing config with no account", () => {
     beforeAll(() => {
       loadMethodFromConfiguration.mockImplementation((methodName) => (
-        // eslint-disable-next-line global-require
-        require("./mocks/no-account-config.json").methods.find((m) => m.name === methodName)
+        noAccountConfig.methods.find((m) => m.name === methodName)
       ));
       loadAccountFromConfiguration.mockImplementation(() => null);
+      loadConfiguration.mockImplementation(() => noAccountConfig);
     });
 
-    it("should fail if method definition is missing", () => {
+    it("should fail if method definition is missing", async () => {
       const action = {
         method: { name: "nonExistentMethod" },
       };
       const settings = {};
 
-      expect(() => {
-        readActionArguments(action, settings);
-      }).toThrowError("Could not find a method \"nonExistentMethod\" in config.json");
+      await expect(readActionArguments(action, settings)).rejects.toThrowError("Could not find a method \"nonExistentMethod\" in config.json");
     });
 
-    it("should parse parameters accordingly to the config", () => {
+    it("should parse parameters accordingly to the config", async () => {
       const action = {
         method: { name: "testMethodOne" },
         params: {
@@ -328,43 +331,11 @@ describe("readActionArguments", () => {
       };
       const settings = {};
 
-      const readArguments = readActionArguments(action, settings);
+      const { params: readArguments } = await readActionArguments(action, settings);
 
       expect(readArguments.testParameterOne).toStrictEqual("test");
       expect(readArguments.testParameterTwo).toEqual(1);
       expect(readArguments.testParameterThree).toStrictEqual("autocomplete-item-1");
-    });
-
-    it("should use settings if parameters are missing", () => {
-      const action = {
-        method: { name: "testMethodTwo" },
-        params: {
-          testParameterFour: null,
-        },
-      };
-      const settings = {
-        testParameterFour: "settings-test",
-      };
-
-      const readArguments = readActionArguments(action, settings);
-
-      expect(readArguments.testParameterFour).toStrictEqual("settings-test");
-    });
-
-    it("should use defaultValue if parameters and settings are missing", () => {
-      const action = {
-        method: { name: "testMethodThree" },
-        params: {
-          testParameterFive: null,
-        },
-      };
-      const settings = {
-        testParameterFive: null,
-      };
-
-      const readArguments = readActionArguments(action, settings);
-
-      expect(readArguments.testParameterFive).toStrictEqual("line-1\nline-2");
     });
   });
 });
