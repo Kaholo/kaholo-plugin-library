@@ -178,6 +178,8 @@ function tag(value) {
     const awsTagDefinition = { Key: Key.trim() };
     if (!_.isNil(Value) && Value.trim() !== "") {
       awsTagDefinition.Value = Value.trim();
+    } else {
+      awsTagDefinition.Value = "";
     }
 
     return awsTagDefinition;
