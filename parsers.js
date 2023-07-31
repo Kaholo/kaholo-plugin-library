@@ -171,11 +171,18 @@ function tag(value) {
 
   if (_.isString(value)) {
     const [Key, Value] = value.split(/=(.+)/);
-    if (_.isNil(Key) || _.isNil(Value) || Key.trim() === "" || Value.trim() === "") {
+    if (_.isNil(Key) || Key.trim() === "") {
       throw new Error(`Incorrectly formatted tag string: ${value}`);
     }
 
-    return { Key: Key.trim(), Value: Value.trim() };
+    const awsTagDefinition = { Key: Key.trim() };
+    if (!_.isNil(Value) && Value.trim() !== "") {
+      awsTagDefinition.Value = Value.trim();
+    } else {
+      awsTagDefinition.Value = "";
+    }
+
+    return awsTagDefinition;
   }
   throw new Error("Unsupported tags format!");
 }
