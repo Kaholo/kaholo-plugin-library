@@ -1,8 +1,7 @@
 const _ = require("lodash");
 const { open, writeFile, unlink } = require("fs/promises");
 const util = require("util");
-
-const exec = util.promisify(require("child_process").exec);
+const childProcess = require("child_process");
 
 const parsers = require("./parsers");
 const validators = require("./validators");
@@ -12,6 +11,7 @@ const {
   loadConfiguration,
 } = require("./config-loader");
 
+const exec = util.promisify(childProcess.exec);
 const CREATE_TEMPORARY_FILE_LINUX_COMMAND = "mktemp -p /tmp kaholo_plugin_library.XXXXXX";
 const DEFAULT_PATH_ARGUMENT_REGEX = /(?<=\s|^|\w+=)((?:fileb?:\/\/)?(?:\.\/|\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)?(?:\.\/|\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*'|(?:fileb?:\/\/)(?:[A-Za-z0-9-_]+\/?)*|"(?:fileb?:\/\/)(?:[^"][A-Za-z0-9-_ ]+\/?)*"|'(?:fileb?:\/\/)(?:[^'][A-Za-z0-9-_ ]+\/?)*')(?=\s|$)/g;
 const QUOTES_REGEX = /((?<!\\)["']$|^(?<!\\)["'])/g;
@@ -158,6 +158,82 @@ function extractPathsFromCommand(commandString, regex = DEFAULT_PATH_ARGUMENT_RE
   return mappedMatches;
 }
 
+async function handleLiveLogging(childProcessInstance, options = {}) {
+  if (!childProcessInstance) {
+    throw new Error("ChildProcess instance is required for Live Logging handler");
+  }
+
+  const {
+    onStdoutData = (data) => data && process.stdout.write(data),
+    onStderrData = (data) => data && process.stderr.write(data),
+    jsonOptions = {},
+  } = options;
+  const {
+    customParse = (chunk) => JSON.parse(String(chunk).trim()),
+    customReduce = (accumulatedChunks, jsonChunk) => [...accumulatedChunks, jsonChunk],
+    printJsonChunksInActivityLog = false,
+    parsingEnabled = true,
+    onJsonData,
+  } = jsonOptions;
+
+  let childProcessError = null;
+  let jsonChunks = [];
+  const createOnDataCallback = (onData) => async (chunk) => {
+    let isJson = false;
+
+    if (parsingEnabled) {
+      const parsedChunk = await attemptParsingChunk(chunk, customParse);
+      if (parsedChunk !== null) {
+        isJson = true;
+        onJsonData?.(parsedChunk);
+        jsonChunks = await customReduce(jsonChunks, parsedChunk);
+      }
+    }
+
+    if (printJsonChunksInActivityLog || !isJson) {
+      onData(chunk);
+    }
+  };
+
+  childProcessInstance.stdout.on("data", createOnDataCallback(onStdoutData));
+  childProcessInstance.stderr.on("data", createOnDataCallback(onStderrData));
+
+  try {
+    await util.promisify(childProcessInstance.on.bind(childProcessInstance))("close");
+  } catch (error) {
+    childProcessError = error;
+  }
+
+  if (jsonChunks.length === 1) {
+    return jsonChunks[0];
+  }
+  if (jsonChunks.length > 1) {
+    return jsonChunks;
+  }
+
+  if (childProcessError) {
+    throw childProcessError;
+  }
+
+  return "";
+}
+
+function execWithLiveLogging(command, childProcessOptions = {}, liveLoggingOptions = {}) {
+  const childProcessInstance = childProcess.exec(command, childProcessOptions);
+
+  return handleLiveLogging(childProcessInstance, liveLoggingOptions);
+}
+
+function spawnWithLiveLogging(
+  command,
+  args = [],
+  childProcessOptions = {},
+  liveLoggingOptions = {},
+) {
+  const childProcessInstance = childProcess.spawn(command, args, childProcessOptions);
+  return handleLiveLogging(childProcessInstance, liveLoggingOptions);
+}
+
 function stripPathArgument(pathArgument) {
   return pathArgument
     .replace(QUOTES_REGEX, "")
@@ -209,6 +285,14 @@ function isResultEmpty(result) {
   );
 }
 
+async function attemptParsingChunk(chunk, customParse) {
+  try {
+    return await customParse(chunk);
+  } catch (error) {
+    return null;
+  }
+}
+
 module.exports = {
   readActionArguments,
   temporaryFileSentinel,
@@ -218,4 +302,7 @@ module.exports = {
   generateRandomEnvironmentVariableName,
   analyzePath: parsers.filePath,
   isResultEmpty,
+  handleLiveLogging,
+  execWithLiveLogging,
+  spawnWithLiveLogging,
 };
